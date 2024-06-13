@@ -172,6 +172,7 @@ public class TableSchema implements Serializable {
         if (bucketKeys.isEmpty()) {
             bucketKeys = trimmedPrimaryKeys();
         }
+        // askwang-todo：这里为什么把 fieldNames 判断去掉了？
         return bucketKeys;
     }
 

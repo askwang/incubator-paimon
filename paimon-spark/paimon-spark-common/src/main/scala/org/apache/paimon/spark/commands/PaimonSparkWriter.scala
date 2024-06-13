@@ -30,12 +30,14 @@ import org.apache.paimon.spark.util.SparkRowUtils
 import org.apache.paimon.table.{BucketMode, FileStoreTable}
 import org.apache.paimon.table.sink.{BatchWriteBuilder, CommitMessage, CommitMessageImpl, CommitMessageSerializer, RowPartitionKeyExtractor}
 import org.apache.paimon.utils.SerializationUtils
+
 import org.apache.spark.{Partitioner, TaskContext}
 import org.apache.spark.sql.{Column, DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions._
 
 import java.io.IOException
 import java.util.Collections.singletonMap
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 

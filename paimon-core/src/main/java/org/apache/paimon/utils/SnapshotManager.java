@@ -23,12 +23,18 @@ import org.apache.paimon.Snapshot;
 import org.apache.paimon.fs.FileIO;
 import org.apache.paimon.fs.FileStatus;
 import org.apache.paimon.fs.Path;
-import org.apache.paimon.fs.SeekableInputStream;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -583,12 +589,11 @@ public class SnapshotManager implements Serializable {
     }
 
     /**
-     * 查找 EARLIEST snapshot id
-     * 1、snapshot dir path 不存在，return null
-     * 2、读取 snapshot dir 下 EARLIEST 文件内容 x，判断 snapshot-x 文件是否存在，存在则返回 EARLIEST 文件内的值
-     * 3、否则，扫描 snapshot dir 目录，去 snapshot-* 的最小值
+     * 查找 EARLIEST snapshot id. 1、snapshot dir path 不存在，return null 2、读取 snapshot dir 下 EARLIEST
+     * 文件内容 x，判断 snapshot-x 文件是否存在，存在则返回 EARLIEST 文件内的值 3、否则，扫描 snapshot dir 目录，去 snapshot-* 的最小值
      */
-    private @Nullable Long findEarliestAskwang(Path dir, String prefix, Function<Long, Path> file) throws IOException {
+    private @Nullable Long findEarliestAskwang(Path dir, String prefix, Function<Long, Path> file)
+            throws IOException {
         if (!fileIO.exists(dir)) {
             return null;
         }
@@ -600,11 +605,9 @@ public class SnapshotManager implements Serializable {
         return findByListFilesAskwang(Math::min, dir, prefix);
     }
 
-    /**
-     * askwang-start
-     * 查找 LATEST snapshot id
-     */
-    private Long findLatestAskwang(Path dir, String prefix, Function<Long, Path> file) throws IOException {
+    /** askwang-start. 查找 LATEST snapshot id。 */
+    private Long findLatestAskwang(Path dir, String prefix, Function<Long, Path> file)
+            throws IOException {
         if (!fileIO.exists(dir)) {
             return null;
         }
@@ -619,33 +622,29 @@ public class SnapshotManager implements Serializable {
         return findByListFilesAskwang(Math::max, dir, prefix);
     }
 
-    /**
-     * 列出 snapshot 目录下以 prefix 为前缀的文件的值，并根据函数 reducer 进行处理
-     */
-    private @Nullable Long findByListFilesAskwang(BinaryOperator<Long> reducer, Path dir, String prefix) throws IOException {
-        return listVersionedFilesAskwang(fileIO, dir, prefix)
-            .reduce(reducer).orElse(null);
+    /** 列出 snapshot 目录下以 prefix 为前缀的文件的值，并根据函数 reducer 进行处理. */
+    private @Nullable Long findByListFilesAskwang(
+            BinaryOperator<Long> reducer, Path dir, String prefix) throws IOException {
+        return listVersionedFilesAskwang(fileIO, dir, prefix).reduce(reducer).orElse(null);
     }
 
     /**
-     * 列出指定目录下以 prefix 为前缀的文件的值
-     * listVersionedFiles(fileIO, snapshotDir/schemaDir, snapshotPrefix/schemaPrefix)
-     * <snapshot-1, snapshot-2, snapshot-3> => Stream<Long> (1,2,3)
-     * 这个函数的用途挺多：
-     *  - 统计 snapshot 个数
-     *  - snapshot id 及对应的 snapshot
-     *  - schema id 及对应 schema
+     * 列出指定目录下以 prefix 为前缀的文件的值. listVersionedFiles(fileIO, snapshotDir/schemaDir,
+     * snapshotPrefix/schemaPrefix). snapshot-1, snapshot-2, snapshot-3 => Stream[Long] (1,2,3).
+     * 这个函数的用途挺多： - 统计 snapshot 个数 - snapshot id 及对应的 snapshot - schema id 及对应 schema
      */
-    private Stream<Long> listVersionedFilesAskwang(FileIO fileIO, Path dir, String prefix) throws IOException {
+    private Stream<Long> listVersionedFilesAskwang(FileIO fileIO, Path dir, String prefix)
+            throws IOException {
         // askwang-done: listStatus 需考虑更多的情况，比如目录不存在、目录为空
         FileStatus[] fileStatuses = fileIO.listStatus(dir);
-        // "EARLIEST".substring("snapshot-".length()); will throw StringIndexOutOfBoundsException, so filter first
+        // "EARLIEST".substring("snapshot-".length()); will throw StringIndexOutOfBoundsException,
+        // so filter first
         return listVersionedFileStatusAskwang(fileIO, dir, prefix)
-            .map(FileStatus::getPath)
-            .map(Path::getName)
-            .map(name -> name.substring(prefix.length())).map(Long::parseLong);
+                .map(FileStatus::getPath)
+                .map(Path::getName)
+                .map(name -> name.substring(prefix.length()))
+                .map(Long::parseLong);
     }
-
 
     public Long readHint(String fileName) {
         return readHint(fileName, snapshotDirectory());
@@ -670,12 +669,7 @@ public class SnapshotManager implements Serializable {
         return null;
     }
 
-    /**
-     * 思路:
-     * 1、读取的文件路径名 path
-     * 2、InputStream 读取对应 path
-     * 3、原方法 readHint 有两层重试机制，异常处理也更周到。
-     */
+    /** 思路. 1、读取的文件路径名 path 2、InputStream 读取对应 path 3、原方法 readHint 有两层重试机制，异常处理也更周到。 */
     public Long readHintAskwang(String fileName) throws IOException {
         Path dir = snapshotDirectory();
         StringBuilder sBuilder = new StringBuilder();
@@ -685,8 +679,9 @@ public class SnapshotManager implements Serializable {
         }
         int retryNum = 0;
         while (retryNum++ <= READ_HINT_RETRY_NUM) {
-            try (InputStream in = fileIO.newInputStream(path)){
-                BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+            try (InputStream in = fileIO.newInputStream(path)) {
+                BufferedReader br =
+                        new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
                 String line;
                 while ((line = br.readLine()) != null) {
                     sBuilder.append(line);
@@ -733,11 +728,7 @@ public class SnapshotManager implements Serializable {
         fileIO.overwriteFileUtf8(hintFile, String.valueOf(snapshotId));
     }
 
-    /**
-     * askwang-start
-     * snapshot dir; overwrite hdfs file;
-     *
-     */
+    /** askwang-start. snapshot dir; overwrite hdfs file; */
     public void commitEarliestHintAskwang(long snapshotId) throws IOException {
         Path path = new Path(snapshotDirectory(), EARLIEST);
         String content = String.valueOf(snapshotId);

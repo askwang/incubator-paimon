@@ -118,10 +118,9 @@ public class FileUtils {
                 .filter(status -> status.getPath().getName().startsWith(prefix));
     }
 
-    /**
-     * 列出目录下的 FileStatus
-     */
-    public static Stream<FileStatus> listVersionedFileStatusAskwang(FileIO fileIO, Path dir, String prefix) throws IOException {
+    /** 列出目录下的 FileStatus. */
+    public static Stream<FileStatus> listVersionedFileStatusAskwang(
+            FileIO fileIO, Path dir, String prefix) throws IOException {
         if (!fileIO.exists(dir)) {
             return Stream.empty();
         }
@@ -131,14 +130,12 @@ public class FileUtils {
         FileStatus[] statuses = fileIO.listStatus(dir);
         if (statuses == null) {
             throw new RuntimeException(
-                String.format(
-                    "The return value is null of the listStatus for the '%s' directory.",
-                    dir));
+                    String.format(
+                            "The return value is null of the listStatus for the '%s' directory.",
+                            dir));
         }
-        return Arrays.stream(statuses)
-            .filter(name -> name.getPath().getName().startsWith(prefix));
+        return Arrays.stream(statuses).filter(name -> name.getPath().getName().startsWith(prefix));
     }
-
 
     /**
      * List versioned directories for the directory.
