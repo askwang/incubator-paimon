@@ -38,6 +38,7 @@ public class FixedBucketRowKeyExtractor extends RowKeyExtractor {
     public FixedBucketRowKeyExtractor(TableSchema schema) {
         super(schema);
         numBuckets = new CoreOptions(schema.options()).bucket();
+        // bucketKeys() 如果 bucketKeys 为空，则返回 trimmedPrimaryKeys() 调用结果
         sameBucketKeyAndTrimmedPrimaryKey = schema.bucketKeys().equals(schema.trimmedPrimaryKeys());
         bucketKeyProjection =
                 CodeGenUtils.newProjection(

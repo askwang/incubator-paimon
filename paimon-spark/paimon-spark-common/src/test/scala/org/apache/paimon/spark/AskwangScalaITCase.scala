@@ -6,6 +6,9 @@ import org.apache.spark.rdd.RDD
 
 class AskwangScalaITCase extends PaimonSparkTestBase {
 
+  /**
+   * 读取分区内元素
+   */
   test("spark partitionBy function") {
 
     val sc = spark.sparkContext
