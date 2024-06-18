@@ -98,7 +98,8 @@ case class PaimonSparkWriter(table: FileStoreTable) {
       // processor.processPartition 是一个 func，func 的类型为 Iterator[T] => Iterator[U]
       // 本质就是 mapPartitions(iter => newIter)
       // 根据 partitionKey 和 bucketKey 进行 repartition
-      // todo-askwang: append 表的 bucketKey 计算
+      // askwang-done: append 表的 bucketKey 计算
+      // CommonBucketProcessor 的 getBucketId 计算 bucketId
       val repartitioned = repartitionByPartitionsAndBucket(
         dataFrame.mapPartitions(processor.processPartition)(encoderGroupWithBucketCol.encoder))
       repartitioned.mapPartitions {
@@ -107,6 +108,7 @@ case class PaimonSparkWriter(table: FileStoreTable) {
             val write = newWrite()
             try {
               iter.foreach(row => write.write(row, row.getInt(bucketColIdx)))
+              // prepareCommit 更新到 finish 方法内
               write.finish().asScala
             } finally {
               write.close()

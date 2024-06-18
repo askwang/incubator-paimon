@@ -124,6 +124,7 @@ public abstract class AbstractFileStoreWrite<T> implements FileStoreWrite<T> {
 
     @Override
     public void write(BinaryRow partition, int bucket, T data) throws Exception {
+        // 获取 partition -> bucket 内的 Writer（RecordWriter）
         WriterContainer<T> container = getWriterWrapper(partition, bucket);
         container.writer.write(data);
         if (container.indexMaintainer != null) {
@@ -343,6 +344,7 @@ public abstract class AbstractFileStoreWrite<T> implements FileStoreWrite<T> {
             buckets = new HashMap<>();
             writers.put(partition.copy(), buckets);
         }
+        // createWriterContainer 支持 AppendOnlyFileStoreWrite 和 KeyValueFileStoreWrite
         return buckets.computeIfAbsent(
                 bucket, k -> createWriterContainer(partition.copy(), bucket, ignorePreviousFiles));
     }
@@ -368,6 +370,8 @@ public abstract class AbstractFileStoreWrite<T> implements FileStoreWrite<T> {
 
         Long latestSnapshotId = snapshotManager.latestSnapshotId();
         List<DataFileMeta> restoreFiles = new ArrayList<>();
+        // 默认 ignorePreviousFiles=false，会 scan 最新 snapshot 的文件
+        // restoreFiles 在后续调用为 inputFiles
         if (!ignorePreviousFiles && latestSnapshotId != null) {
             restoreFiles = scanExistingFileMetas(latestSnapshotId, partition, bucket);
         }

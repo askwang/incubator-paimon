@@ -1510,6 +1510,7 @@ public class CoreOptions implements Serializable {
         // level 1
         Integer numLevels = options.get(NUM_LEVELS);
         if (numLevels == null) {
+            // num-sorted-run.compaction-trigger=5
             numLevels = MathUtils.incrementSafely(numSortedRunCompactionTrigger());
         }
         return numLevels;

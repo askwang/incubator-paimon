@@ -84,6 +84,8 @@ public class KeyValueFileWriterFactory {
 
     public RollingFileWriter<KeyValue, DataFileMeta> createRollingMergeTreeFileWriter(
             int level, FileSource fileSource) {
+        // RollingFileWrite 封装一个 Supplier 对象，每次调用其 get 方法进行文件的 id 自增
+        // DataFilePathFactory 用于为 data file 生成 path，内部 uuid 是唯一的，id 自增
         return new RollingFileWriter<>(
                 () ->
                         createDataFileWriter(

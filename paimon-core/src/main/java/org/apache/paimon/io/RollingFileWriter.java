@@ -73,6 +73,7 @@ public class RollingFileWriter<T, R> implements FileWriter<T, List<R>> {
     @Override
     public void write(T row) throws IOException {
         try {
+            // openCurrentWriter 内部 currentWriter = writerFactory.get(); 实现文件 id 自增
             // Open the current writer if write the first record or roll over happen before.
             if (currentWriter == null) {
                 openCurrentWriter();

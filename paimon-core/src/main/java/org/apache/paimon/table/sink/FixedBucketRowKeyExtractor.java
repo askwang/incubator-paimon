@@ -36,6 +36,9 @@ public class FixedBucketRowKeyExtractor extends RowKeyExtractor {
     private Integer reuseBucket;
 
     public FixedBucketRowKeyExtractor(TableSchema schema) {
+        // projection构建：调用 apply 方法，将 RowData 选取部分列转换成 BinaryRowData。类似于列裁剪）
+        // partitionProjection、trimmedPrimaryKeyProjection （由 partitionKeyExtractor 封装）你
+        // logPrimaryKeyProjection、bucketKeyProjection
         super(schema);
         numBuckets = new CoreOptions(schema.options()).bucket();
         // bucketKeys() 如果 bucketKeys 为空，则返回 trimmedPrimaryKeys() 调用结果
@@ -57,6 +60,7 @@ public class FixedBucketRowKeyExtractor extends RowKeyExtractor {
             return trimmedPrimaryKey();
         }
 
+        // askwang-todo: 什么情况下会用到 reuseBucketKey ？
         if (reuseBucketKey == null) {
             reuseBucketKey = bucketKeyProjection.apply(record);
         }
@@ -65,6 +69,7 @@ public class FixedBucketRowKeyExtractor extends RowKeyExtractor {
 
     @Override
     public int bucket() {
+        // 计算 record 的 bucketKey，根据 bucketKey 的 hashcode 分发
         BinaryRow bucketKey = bucketKey();
         if (reuseBucket == null) {
             reuseBucket =

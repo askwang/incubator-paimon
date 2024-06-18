@@ -44,6 +44,7 @@ public class AppendOnlyCompactionTask {
                 files != null && files.size() > 1,
                 "AppendOnlyCompactionTask need more than one file input.");
         this.partition = partition;
+        // 构建 AppendOnlyCompactionTask 时将 files 封装到 compactBefore
         compactBefore = new ArrayList<>(files);
         compactAfter = new ArrayList<>();
     }

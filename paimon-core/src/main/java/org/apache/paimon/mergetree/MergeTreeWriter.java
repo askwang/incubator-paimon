@@ -158,7 +158,10 @@ public class MergeTreeWriter implements RecordWriter<KeyValue>, MemoryOwner {
     @Override
     public void write(KeyValue kv) throws Exception {
         long sequenceNumber = newSequenceNumber();
+        // 放入 write buffer
         boolean success = writeBuffer.put(sequenceNumber, kv.valueKind(), kv.key(), kv.value());
+        // buffer 放不下则刷新当前 buffer 缓冲区，重新放入 buffer
+        // 如果放得下则等到 write.finish 内部的 prepareCommit 进行刷新
         if (!success) {
             flushWriteBuffer(false, false);
             success = writeBuffer.put(sequenceNumber, kv.valueKind(), kv.key(), kv.value());
@@ -212,10 +215,14 @@ public class MergeTreeWriter implements RecordWriter<KeyValue>, MemoryOwner {
                     changelogProducer == ChangelogProducer.INPUT
                             ? writerFactory.createRollingChangelogFileWriter(0)
                             : null;
+            // RollingFileWriter 默认写入 level 0
             final RollingFileWriter<KeyValue, DataFileMeta> dataWriter =
                     writerFactory.createRollingMergeTreeFileWriter(0, FileSource.APPEND);
 
             try {
+                // forEach 内会对 SortBuffer buffer 数据存储区进行排序，
+                // 排序后 通过 dataWrite.wirte 写入文件，所以 paimon 能做到文件内 key 有序
+                // append 表没有 key 不用排序
                 writeBuffer.forEach(
                         keyComparator,
                         mergeFunction,

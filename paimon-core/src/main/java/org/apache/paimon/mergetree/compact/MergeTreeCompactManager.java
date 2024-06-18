@@ -119,6 +119,9 @@ public class MergeTreeCompactManager extends CompactFutureManager {
                         "Trigger forced full compaction. Picking from the following runs\n{}",
                         runs);
             }
+            // levels 是 Levels 类对象，内部是 levels 属性是 List<SortedRun> 类型
+            // maxLevel = numLevels - 1, maxLevel 作为 full compaction 的 outputLevel
+            // 即 full compaction 后所有文件都落到 maxLevel 层
             optionalUnit = CompactStrategy.pickFullCompaction(levels.numberOfLevels(), runs);
         } else {
             if (taskFuture != null) {

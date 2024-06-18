@@ -172,7 +172,11 @@ public class TableSchema implements Serializable {
         if (bucketKeys.isEmpty()) {
             bucketKeys = trimmedPrimaryKeys();
         }
-        // askwang-todo：这里为什么把 fieldNames 判断去掉了？
+        // askwang-done：这里为什么把 fieldNames 判断去掉了？
+        // https://github.com/apache/paimon/pull/3320
+        // 对于 append table，这个 pr 优化，如果没有设置 bucket-key，还不如直接使用 bucket=-1
+        // 之前使用 filedNames（whole line）作为 bucket-key，性能很差
+        // 困惑：删除的代码是找不到对应的提交pr，需要去 pr 列表中查找
         return bucketKeys;
     }
 

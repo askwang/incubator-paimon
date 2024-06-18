@@ -79,6 +79,7 @@ public class UniversalCompaction implements CompactStrategy {
             }
         }
 
+        // https://www.cnblogs.com/Aitozi/p/17506198.html 介绍 size Amplification 和 size radio
         // 1 checking for reducing size amplification
         CompactUnit unit = pickForSizeAmp(maxLevel, runs);
         if (unit != null) {
@@ -99,6 +100,8 @@ public class UniversalCompaction implements CompactStrategy {
 
         // 3 checking for file num
         if (runs.size() > numRunCompactionTrigger) {
+            // 比如 runs = 10，则直接从第 6 个文件开始处理
+            // 即直接比较 size(R7) / size(R1~R6) 与 size_ratio_trigger
             // compacting for file num
             int candidateCount = runs.size() - numRunCompactionTrigger + 1;
             if (LOG.isDebugEnabled()) {
@@ -124,8 +127,11 @@ public class UniversalCompaction implements CompactStrategy {
 
         long earliestRunSize = runs.get(runs.size() - 1).run().totalSize();
 
+        // maxSizeAmp: compaction.max-size-amplification-percent = 200
+        // 判断R1～R(n-1) sorted run大小有没有超过 最高层(最老数据)的两倍, 超过了那就触发一次full compaction.
         // size amplification = percentage of additional size
         if (candidateSize * 100 > maxSizeAmp * earliestRunSize) {
+            // askwang-todo：更新 lastOptimizedCompaction 值作用是什么
             updateLastOptimizedCompaction();
             return CompactUnit.fromLevelRuns(maxLevel, runs);
         }
@@ -147,6 +153,19 @@ public class UniversalCompaction implements CompactStrategy {
         return pickForSizeRatio(maxLevel, runs, candidateCount, false);
     }
 
+    /*
+     * sizeRatio: compaction.size-ratio = 1.
+     * size_ratio_trigger = (100 + options.compaction_options_universal.size_ratio) / 100.
+     * size(R2) / size(R1) <= size_ratio_trigger, 那么（R1，R2）被合并到一起 size(R3) / size(R1+r2) <= size_ratio_trigger，R3应该被包含，得到(R1,R2,R3).
+     * 这个策略的效果有点类似于是除了最高层之外, 把各个sorted run的大小尽可能靠近对齐.
+     * 1 1 1 1 1 => 5 1 5 (no compaction triggered).
+     * 1 1 5 (no compaction triggered).
+     * 1 1 1 5 (no compaction triggered).
+     * 1 1 1 1 5 => 4 5 1 4 5 (no compaction triggered).
+     * 1 1 4 5 (no compaction triggered).
+     * 1 1 1 4 5 => 3 4 5 1 3 4 5 (no compaction triggered).
+     * 1 1 3 4 5 => 2 3 4 5.
+     */
     public CompactUnit pickForSizeRatio(
             int maxLevel, List<LevelSortedRun> runs, int candidateCount, boolean forcePick) {
         long candidateSize = candidateSize(runs, candidateCount);
@@ -177,7 +196,10 @@ public class UniversalCompaction implements CompactStrategy {
 
     @VisibleForTesting
     CompactUnit createUnit(List<LevelSortedRun> runs, int maxLevel, int runCount) {
+        // 确定 compact 后的文件放到哪一个 level
         int outputLevel;
+        // 1. runCount 包含所有 runs，则 outputLevel 为 maxLevel
+        // 否则，放到 next level 的上一个 level （这个处理比较巧妙，不是直接取第 runCount LevelSortedRun 的 level)
         if (runCount == runs.size()) {
             outputLevel = maxLevel;
         } else {
@@ -185,6 +207,8 @@ public class UniversalCompaction implements CompactStrategy {
             outputLevel = Math.max(0, runs.get(runCount).level() - 1);
         }
 
+        // 2. 如果 outputLevel = 0，则将下一个 LevelSortedRun 纳入到 runCount 中，直到下一个 LevelSortedRun 的 level 不为
+        // 0
         if (outputLevel == 0) {
             // do not output level 0
             for (int i = runCount; i < runs.size(); i++) {
@@ -197,6 +221,7 @@ public class UniversalCompaction implements CompactStrategy {
             }
         }
 
+        // 3. 经过第 2 步的 outputLevel 非 0 处理，runCount 又可能包含所有 runs
         if (runCount == runs.size()) {
             updateLastOptimizedCompaction();
             outputLevel = maxLevel;

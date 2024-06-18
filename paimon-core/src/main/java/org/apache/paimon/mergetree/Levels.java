@@ -34,7 +34,12 @@ import java.util.stream.Collectors;
 import static java.util.Collections.emptyList;
 import static org.apache.paimon.utils.Preconditions.checkArgument;
 
-/** A class which stores all level files of merge tree. */
+/**
+ * A class which stores all level files of merge tree.
+ *
+ * <p>conf: num-levels，5 表示 level 0～4 level 0 包含多个 SortedRun，每个 SortedRun 只有一个文件 level 0 以上每层只有一个
+ * SortedRun，包含多个文件
+ */
 public class Levels {
 
     private final Comparator<InternalRow> keyComparator;

@@ -32,6 +32,8 @@ import java.util.stream.Collectors;
 /**
  * A {@link SortedRun} is a list of files sorted by their keys. The key intervals [minKey, maxKey]
  * of these files do not overlap.
+ *
+ * <p>单个 SortedRun 内的多个文件的 [minKey, maxKey] 不重叠，不同 SortedRun 内的 key 会重复
  */
 public class SortedRun {
 

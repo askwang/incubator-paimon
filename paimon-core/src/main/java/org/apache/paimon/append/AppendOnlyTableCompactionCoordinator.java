@@ -129,6 +129,7 @@ public class AppendOnlyTableCompactionCoordinator {
 
     @VisibleForTesting
     void notifyNewFiles(BinaryRow partition, List<DataFileMeta> files) {
+        // addFiles 方法是将符合条件的 file 添加到当前 partition 对应的 PartitionCompactCoordinator 内部
         partitionCompactCoordinators
                 .computeIfAbsent(partition, PartitionCompactCoordinator::new)
                 .addFiles(
@@ -140,6 +141,7 @@ public class AppendOnlyTableCompactionCoordinator {
     @VisibleForTesting
     // generate compaction task to the next stage
     List<AppendOnlyCompactionTask> compactPlan() {
+        // s.plan 会调用 pickCompact 选择这个 AppendOnlyCompactionTask 要合并的文件
         // first loop to found compaction tasks
         List<AppendOnlyCompactionTask> tasks =
                 partitionCompactCoordinators.values().stream()
@@ -214,7 +216,9 @@ public class AppendOnlyTableCompactionCoordinator {
             return toCompact.isEmpty() || age > REMOVE_AGE;
         }
 
+        /** 将 partition 内的 toCompact 文件进行分批打包，一批文件由一个 AppendOnlyCompactionTask 处理 */
         private List<List<DataFileMeta>> agePack() {
+            // askwang-todo：这里分批打包的逻辑还需要研究
             List<List<DataFileMeta>> packed = pack();
             if (packed.isEmpty()) {
                 // non-packed, we need to grow up age, and check whether to compact once

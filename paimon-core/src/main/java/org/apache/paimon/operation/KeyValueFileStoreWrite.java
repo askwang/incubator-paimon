@@ -181,13 +181,20 @@ public class KeyValueFileStoreWrite extends MemoryFileStoreWrite<KeyValue> {
         KeyValueFileWriterFactory writerFactory =
                 writerFactoryBuilder.build(partition, bucket, options);
         Comparator<InternalRow> keyComparator = keyComparatorSupplier.get();
+        // restoreFiles 为 inputFiles
         Levels levels = new Levels(keyComparator, restoreFiles, options.numLevels());
         UniversalCompaction universalCompaction =
+                // compaction.max-size-amplification-percent = 200
+                // compaction.size-ratio = 1
+                // num-sorted-run.compaction-trigger =5
+                // compaction.optimization-interval = none
                 new UniversalCompaction(
                         options.maxSizeAmplificationPercent(),
                         options.sortedRunSizeRatio(),
                         options.numSortedRunCompactionTrigger(),
                         options.optimizedCompactionInterval());
+        // needLookup 作为是采用 ForceUpLevel0Compaction 策略还是 UniversalCompaction 策略
+        // ForceUpLevel0Compaction 策略内部还是会先调用 UniversalCompaction#pick 选取文件
         CompactStrategy compactStrategy =
                 options.needLookup()
                         ? new ForceUpLevel0Compaction(universalCompaction)
