@@ -214,6 +214,7 @@ public class MergeTreeCompactManager extends CompactFutureManager {
                                 r.before(),
                                 r.after());
                     }
+                    // levels 更新
                     levels.update(r.before(), r.after());
                     MetricUtils.safeCall(this::reportLevel0FileCount, LOG);
                     if (LOG.isDebugEnabled()) {

@@ -147,6 +147,14 @@ public class Levels {
         return files;
     }
 
+    /** 获取 level0 和 levels 的所有 DataFileMeta */
+    public List<DataFileMeta> allFilesAskwang() {
+        List<DataFileMeta> files = new ArrayList<>();
+        level0.forEach(files::add);
+        levels.forEach(sortedRun -> files.addAll(sortedRun.files()));
+        return files;
+    }
+
     public List<LevelSortedRun> levelSortedRuns() {
         List<LevelSortedRun> runs = new ArrayList<>();
         level0.forEach(file -> runs.add(new LevelSortedRun(0, SortedRun.fromSingle(file))));
@@ -157,6 +165,19 @@ public class Levels {
             }
         }
         return runs;
+    }
+
+    /** 根据 level0 和 levels 构建 LevelSortedRun **/
+    public List<LevelSortedRun> levelSortedRunsAskwang() {
+        List<LevelSortedRun> levelRuns = new ArrayList<>();
+        level0.forEach(file -> levelRuns.add(new LevelSortedRun(file.level(), SortedRun.fromSingle(file))));
+        for (int i = 0; i < levels.size(); i++) {
+            SortedRun sortedRun = levels.get(i);
+            if (sortedRun.nonEmpty()) {
+                levelRuns.add(new LevelSortedRun(i + 1, sortedRun));
+            }
+        }
+        return levelRuns;
     }
 
     public void update(List<DataFileMeta> before, List<DataFileMeta> after) {
