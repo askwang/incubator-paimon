@@ -28,7 +28,9 @@ import org.apache.spark.sql.types.StructType;
 
 import static org.apache.spark.sql.types.DataTypes.StringType;
 
-/** A procedure to delete a tag. */
+/** A procedure to delete a tag.
+ * askwang-todo: 创建 tag 时有 retainTime 和 createTime，是否可以增加 where 条件，超过 retainTime 的所有 tags 进行 delete
+ */
 public class DeleteTagProcedure extends BaseProcedure {
 
     private static final ProcedureParameter[] PARAMETERS =

@@ -273,11 +273,13 @@ abstract class AbstractFileStore<T> implements FileStore<T> {
 
     @Override
     public List<TagCallback> createTagCallbacks() {
+        // 自定义 callback，通过参数 tag.callbacks 配置
         List<TagCallback> callbacks = new ArrayList<>(CallbackUtils.loadTagCallbacks(options));
         String partitionField = options.tagToPartitionField();
         MetastoreClient.Factory metastoreClientFactory =
                 catalogEnvironment.metastoreClientFactory();
         if (partitionField != null && metastoreClientFactory != null) {
+            // 内置的 AddPartitionTagCallback，即添加或删除 tagName 对应的分区
             callbacks.add(
                     new AddPartitionTagCallback(metastoreClientFactory.create(), partitionField));
         }

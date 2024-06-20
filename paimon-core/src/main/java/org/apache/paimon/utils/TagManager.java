@@ -94,12 +94,17 @@ public class TagManager {
             List<TagCallback> callbacks) {
         checkArgument(!StringUtils.isBlank(tagName), "Tag name '%s' is blank.", tagName);
 
+        // 如果 tag 已经存在则直接失败
         // skip create tag for the same snapshot of the same name.
         if (tagExists(tagName)) {
+            // tag 存在则判断 tag 对应的 snapshot id 是否和要创建的 snapshot id 一致
             Snapshot tagged = taggedSnapshot(tagName);
             Preconditions.checkArgument(
                     tagged.id() == snapshot.id(), "Tag name '%s' already exists.", tagName);
         } else {
+            // tag 创建的本质就是把 snapshot 的 json 拿过来
+            // 如果指定了 timeRetained，则添加 timeRetained 和 tagCreateTime 写入到 json
+            // snapshot json -> tag json，snapshot 的 watermark 和 statistics 为空，不添加到 json
             Path newTagPath = tagPath(tagName);
             try {
                 fileIO.writeFileUtf8(
@@ -120,6 +125,10 @@ public class TagManager {
         }
 
         try {
+            // 将 tagName 作为分区结果添加到分区中，参考 HiveCatalogITCaseBase#testAddPartitionsForTag
+            // 比如设置 'metastore.tag-to-partition' = 'dt'
+            // CALL sys.create_tag('t', '2023-10-16', 1)
+            // SELECT * FROM t WHERE dt='2023-10-16'")
             callbacks.forEach(callback -> callback.notifyCreation(tagName));
         } finally {
             for (TagCallback tagCallback : callbacks) {
@@ -158,14 +167,17 @@ public class TagManager {
         Snapshot taggedSnapshot = taggedSnapshot(tagName);
         List<Snapshot> taggedSnapshots;
 
+        // tag 对应的 snapshot id 还存在，则不需要 delete file
         // skip file deletion if snapshot exists
         if (snapshotManager.copyWithBranch(branch).snapshotExists(taggedSnapshot.id())) {
             deleteTagMetaFile(tagName, callbacks);
             return;
         } else {
+            // 找到所有 tags 对应的 snapshot，按 snapshot id 升序排序存储
             // FileIO discovers tags by tag file, so we should read all tags before we delete tag
             SortedMap<Snapshot, List<String>> tags = tags();
             deleteTagMetaFile(tagName, callbacks);
+            // 如果当前 taggedSnapshot id 对应多个 tag，则删除 tag metafile 即可，不继续处理
             // skip data file clean if more than 1 tags are created based on this snapshot
             if (tags.get(taggedSnapshot).size() > 1) {
                 return;
@@ -179,6 +191,7 @@ public class TagManager {
     private void deleteTagMetaFile(String tagName, List<TagCallback> callbacks) {
         fileIO.deleteQuietly(tagPath(tagName));
         try {
+            // 处理 callback，即删除 tagName 对应的 分区
             callbacks.forEach(callback -> callback.notifyDeletion(tagName));
         } finally {
             for (TagCallback tagCallback : callbacks) {
@@ -196,7 +209,13 @@ public class TagManager {
         // the earliest snapshot or right neighbor tag)
         List<Snapshot> skippedSnapshots = new ArrayList<>();
 
-        int index = findIndex(taggedSnapshot, taggedSnapshots);
+        // taggedSnapshots 是按 snapshot id 升序的所有 tags 对应的 snapshot
+        // taggedSnapshot 是当前 tag 对应的 snapshot
+        // findIndex 的作用是找到 taggedSnapshot 在 taggedSnapshots 的位置，对其之前（包括自身）的 snapshot 进行清理
+        int index = findIndexAskwang(taggedSnapshot, taggedSnapshots);
+
+        // 处理 index 位置的 snapshot 的左右边界
+        // askwang-todo: 没看懂
         // the left neighbor tag
         if (index - 1 >= 0) {
             skippedSnapshots.add(taggedSnapshots.get(index - 1));
@@ -292,11 +311,15 @@ public class TagManager {
             for (Path path : paths) {
                 String tagName = path.getName().substring(TAG_PREFIX.length());
 
+                // Predicate<String> filter = s -> true. 只要是字符串就返回 true
                 if (!filter.test(tagName)) {
                     continue;
                 }
                 // If the tag file is not found, it might be deleted by
                 // other processes, so just skip this tag
+                // askwang-done: tag 中包含 snapshot + tagCreateTime + tagTimeRetained，直接读 tag path 内容是否有问题？
+                // 没问题，json 解析时会根据匹配字段进行解析，不匹配的字段会丢掉。
+                // tag json -> snapshot json, 解析时去掉 tagCreateTime 和 tagTimeRetained
                 Snapshot snapshot = Snapshot.safelyFromPath(fileIO, path);
                 if (snapshot != null) {
                     tags.computeIfAbsent(snapshot, s -> new ArrayList<>()).add(tagName);
@@ -349,10 +372,33 @@ public class TagManager {
         return tags().values().stream().flatMap(Collection::stream).collect(Collectors.toList());
     }
 
+    /** askwang-todo: 二分查找加速 taggedSnapshot 查询速度. */
     private int findIndex(Snapshot taggedSnapshot, List<Snapshot> taggedSnapshots) {
         for (int i = 0; i < taggedSnapshots.size(); i++) {
             if (taggedSnapshot.id() == taggedSnapshots.get(i).id()) {
                 return i;
+            }
+        }
+        throw new RuntimeException(
+                String.format(
+                        "Didn't find tag with snapshot id '%s'.This is unexpected.",
+                        taggedSnapshot.id()));
+    }
+
+    private int findIndexAskwang(Snapshot taggedSnapshot, List<Snapshot> taggedSnapshots) {
+        if (taggedSnapshots.size() == 1 && taggedSnapshots.get(0).id() == taggedSnapshot.id()) {
+            return 0;
+        }
+        int left = 0;
+        int right = taggedSnapshots.size() - 1;
+        while (left <= right) {
+            int mid = left + (right -left) / 2;
+            if (taggedSnapshots.get(mid).id() == taggedSnapshot.id()) {
+                return mid;
+            } else if (taggedSnapshots.get(mid).id() < taggedSnapshot.id()) {
+                left = mid + 1;
+            } else {
+                right = mid - 1;
             }
         }
         throw new RuntimeException(

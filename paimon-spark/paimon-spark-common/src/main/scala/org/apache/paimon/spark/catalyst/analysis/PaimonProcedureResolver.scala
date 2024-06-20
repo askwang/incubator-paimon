@@ -60,6 +60,8 @@ case class PaimonProcedureResolver(sparkSession: SparkSession)
         args = buildArgumentExpressions(normalizedParameters, normalizedArguments))
 
     case call @ PaimonCallCommand(procedure, arguments) if call.resolved =>
+      // parameters 为 Procedure 的 input 参数
+      // parameters 为 call 命令传入的参数
       val parameters = procedure.parameters
       val newArguments = arguments.zipWithIndex.map {
         case (argument, index) =>
@@ -71,7 +73,8 @@ case class PaimonProcedureResolver(sparkSession: SparkSession)
               s"Cannot cast $argumentType to $parameterType of ${parameter.name}.")
           }
           if (parameterType != argumentType) {
-            Cast(argument, parameterType)
+            // 加上 None 就不会报错
+            Cast(argument, parameterType, None)
           } else {
             argument
           }

@@ -39,6 +39,7 @@ import static org.apache.spark.sql.types.DataTypes.StringType;
  * <pre><code>
  *  CALL sys.remove_orphan_files(table => 'tableId', [older_than => '2023-10-31 12:00:00'])
  * </code></pre>
+ * askwang-todo: 参考 iceberg，支持 location 或者 partition
  */
 public class RemoveOrphanFilesProcedure extends BaseProcedure {
 
