@@ -184,7 +184,8 @@ public class CompactProcedure extends BaseProcedure {
         BucketMode bucketMode = table.bucketMode();
         TableSorter.OrderType orderType = TableSorter.OrderType.of(sortType);
         // pk 表：orderType 必须为 NONE，fixed/dynamic bucket 走 compactAwareBucketTable 逻辑
-        // append 表：orderType = NONE，fixed bucket 走 compactAwareBucketTable 逻辑，unware bucket 走 compactUnAwareBucketTable逻辑
+        // append 表：orderType = NONE，fixed bucket 走 compactAwareBucketTable 逻辑，unware bucket 走
+        // compactUnAwareBucketTable逻辑
         // append 表：orderType != NONE，只支持 unare bucket，走 sortCompactUnAwareBucketTable 逻辑
         if (orderType.equals(TableSorter.OrderType.NONE)) {
             JavaSparkContext javaSparkContext = new JavaSparkContext(spark().sparkContext());
@@ -333,8 +334,10 @@ public class CompactProcedure extends BaseProcedure {
                                             try {
                                                 CommitMessageSerializer messageSer =
                                                         new CommitMessageSerializer();
-                                                // taskIterator 是对序列化后的 AppendOnlyCompactionTask 进行parallelize处理
-                                                // 也就是说一个 spark partition 会处理多个 AppendOnlyCompactionTask
+                                                // taskIterator 是对序列化后的 AppendOnlyCompactionTask
+                                                // 进行parallelize处理
+                                                // 也就是说一个 spark partition 会处理多个
+                                                // AppendOnlyCompactionTask
                                                 while (taskIterator.hasNext()) {
                                                     AppendOnlyCompactionTask task =
                                                             ser.deserialize(

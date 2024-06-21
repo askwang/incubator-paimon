@@ -216,7 +216,7 @@ public class AppendOnlyTableCompactionCoordinator {
             return toCompact.isEmpty() || age > REMOVE_AGE;
         }
 
-        /** 将 partition 内的 toCompact 文件进行分批打包，一批文件由一个 AppendOnlyCompactionTask 处理 */
+        /** 将 partition 内的 toCompact 文件进行分批打包，一批文件由一个 AppendOnlyCompactionTask 处理. */
         private List<List<DataFileMeta>> agePack() {
             // askwang-todo：这里分批打包的逻辑还需要研究
             List<List<DataFileMeta>> packed = pack();

@@ -450,6 +450,9 @@ abstract class AbstractFileStoreTable implements FileStoreTable {
         if (snapshotManager.snapshotExists(fromSnapshotId)) {
             snapshot = snapshotManager.snapshot(fromSnapshotId);
         } else {
+            // snapshot 不存在
+            // 拿所有 tag，如果存在某个 tag 包含该 snapshot id
+            // 则从 tag path 中读取该 snapshot 信息封装成 snapshot
             SortedMap<Snapshot, List<String>> tags = tagManager().tags();
             for (Snapshot snap : tags.keySet()) {
                 if (snap.id() == fromSnapshotId) {

@@ -94,7 +94,6 @@ public class TagManager {
             List<TagCallback> callbacks) {
         checkArgument(!StringUtils.isBlank(tagName), "Tag name '%s' is blank.", tagName);
 
-        // 如果 tag 已经存在则直接失败
         // skip create tag for the same snapshot of the same name.
         if (tagExists(tagName)) {
             // tag 存在则判断 tag 对应的 snapshot id 是否和要创建的 snapshot id 一致
@@ -317,7 +316,8 @@ public class TagManager {
                 }
                 // If the tag file is not found, it might be deleted by
                 // other processes, so just skip this tag
-                // askwang-done: tag 中包含 snapshot + tagCreateTime + tagTimeRetained，直接读 tag path 内容是否有问题？
+                // askwang-done: tag 中包含 snapshot + tagCreateTime + tagTimeRetained，直接读 tag path
+                // 内容是否有问题？
                 // 没问题，json 解析时会根据匹配字段进行解析，不匹配的字段会丢掉。
                 // tag json -> snapshot json, 解析时去掉 tagCreateTime 和 tagTimeRetained
                 Snapshot snapshot = Snapshot.safelyFromPath(fileIO, path);
@@ -392,7 +392,7 @@ public class TagManager {
         int left = 0;
         int right = taggedSnapshots.size() - 1;
         while (left <= right) {
-            int mid = left + (right -left) / 2;
+            int mid = left + (right - left) / 2;
             if (taggedSnapshots.get(mid).id() == taggedSnapshot.id()) {
                 return mid;
             } else if (taggedSnapshots.get(mid).id() < taggedSnapshot.id()) {
