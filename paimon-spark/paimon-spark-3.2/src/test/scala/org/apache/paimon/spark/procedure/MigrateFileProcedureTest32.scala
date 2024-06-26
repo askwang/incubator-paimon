@@ -19,6 +19,7 @@
 package org.apache.paimon.spark.procedure
 
 import org.apache.paimon.spark.PaimonHiveTestBase
+
 import org.apache.spark.sql.Row
 
 class MigrateFileProcedureTest32 extends PaimonHiveTestBase {

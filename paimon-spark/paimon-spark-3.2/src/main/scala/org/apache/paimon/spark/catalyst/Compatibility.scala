@@ -44,10 +44,10 @@ object Compatibility {
   }
 
   def cast(
-            child: Expression,
-            dataType: DataType,
-            timeZoneId: Option[String] = None,
-            ansiEnabled: Boolean = SQLConf.get.ansiEnabled): Cast = {
+      child: Expression,
+      dataType: DataType,
+      timeZoneId: Option[String] = None,
+      ansiEnabled: Boolean = SQLConf.get.ansiEnabled): Cast = {
     Cast(child, dataType, timeZoneId, ansiEnabled)
   }
 }

@@ -488,4 +488,49 @@ abstract class CompactProcedureTestBase extends PaimonSparkTestBase with StreamT
   def lastSnapshotId(table: FileStoreTable): Long = {
     table.snapshotManager().latestSnapshotId()
   }
+
+  test("Paimon Procedure: compact unware bucket for append table with many small files") {
+    spark.sql(
+      s"""
+         |CREATE TABLE T (id INT, value STRING, pt STRING)
+         |TBLPROPERTIES ('bucket'='2', 'write-only'='false', 'compaction.max.file-num' = '10')
+         |""".stripMargin)
+
+    val table = loadTable("T")
+
+    val count = 12
+    for (i <- 0 until count) {
+      spark.sql(s"INSERT INTO T VALUES ($i, 'a', 'p$i')")
+    }
+
+    spark.sql(s"CALL sys.compact(table => 'T')")
+    Assertions.assertThat(lastSnapshotCommand(table).equals(CommitKind.COMPACT)).isTrue
+    checkAnswer(spark.sql(s"SELECT COUNT(*) FROM T"), Row(count) :: Nil)
+  }
+
+  test("Paimon Procedure: compact fixed bucket for pk table with many small files") {
+    Seq(3).foreach(
+      bucket => {
+        withTable("T") {
+          spark.sql(
+            s"""
+               |CREATE TABLE T (id INT, value STRING, pt STRING)
+               |TBLPROPERTIES ('primary-key'='id', 'bucket'='2', 'write-only'='false') -- simulate multiple splits in a single bucket
+               |""".stripMargin)
+          // 'source.split.target-size'='128m','source.split.open-file-cost'='32m'
+
+          val table = loadTable("T")
+
+          val count = 12
+          // 单个 bucket 写入第 5 个文件时会根据 pickForSizeAmp 触发 compact
+          for (i <- 0 until count) {
+            spark.sql(s"INSERT INTO T VALUES ($i, 'a', 'p$i')")
+          }
+
+          spark.sql(s"CALL sys.compact(table => 'T')")
+          Assertions.assertThat(lastSnapshotCommand(table).equals(CommitKind.COMPACT)).isTrue
+          checkAnswer(spark.sql(s"SELECT COUNT(*) FROM T"), Row(count) :: Nil)
+        }
+      })
+  }
 }

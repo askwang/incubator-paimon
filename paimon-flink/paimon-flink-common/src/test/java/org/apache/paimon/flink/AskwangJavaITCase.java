@@ -63,7 +63,6 @@ public class AskwangJavaITCase {
         for (String tag : tags) {
             String tagName = tag.substring("tag-".length());
             System.out.println(tagName + ":" + filter.test(tagName));
-            ;
         }
     }
 

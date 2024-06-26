@@ -100,6 +100,7 @@ public class UniversalCompaction implements CompactStrategy {
 
         // 3 checking for file num
         if (runs.size() > numRunCompactionTrigger) {
+            // numRunCompactionTrigger = 5
             // 比如 runs = 10，则直接从第 6 个文件开始处理
             // 即直接比较 size(R7) / size(R1~R6) 与 size_ratio_trigger
             // compacting for file num
@@ -118,7 +119,7 @@ public class UniversalCompaction implements CompactStrategy {
         if (runs.size() < numRunCompactionTrigger) {
             return null;
         }
-
+        // runs 的顺序
         long candidateSize =
                 runs.subList(0, runs.size() - 1).stream()
                         .map(LevelSortedRun::run)
@@ -158,12 +159,15 @@ public class UniversalCompaction implements CompactStrategy {
      * size_ratio_trigger = (100 + options.compaction_options_universal.size_ratio) / 100.
      * size(R2) / size(R1) <= size_ratio_trigger, 那么（R1，R2）被合并到一起 size(R3) / size(R1+r2) <= size_ratio_trigger，R3应该被包含，得到(R1,R2,R3).
      * 这个策略的效果有点类似于是除了最高层之外, 把各个sorted run的大小尽可能靠近对齐.
-     * 1 1 1 1 1 => 5 1 5 (no compaction triggered).
+     * 1 1 1 1 1 => 5.
+     * 1 5 (no compaction triggered).
      * 1 1 5 (no compaction triggered).
      * 1 1 1 5 (no compaction triggered).
-     * 1 1 1 1 5 => 4 5 1 4 5 (no compaction triggered).
+     * 1 1 1 1 5 => 4 5.
+     * 1 4 5 (no compaction triggered).
      * 1 1 4 5 (no compaction triggered).
-     * 1 1 1 4 5 => 3 4 5 1 3 4 5 (no compaction triggered).
+     * 1 1 1 4 5 => 3 4 5.
+     * 1 3 4 5 (no compaction triggered).
      * 1 1 3 4 5 => 2 3 4 5.
      */
     public CompactUnit pickForSizeRatio(
@@ -180,6 +184,7 @@ public class UniversalCompaction implements CompactStrategy {
         }
 
         if (forcePick || candidateCount > 1) {
+            // 创建 outputLevel 可能为非 maxLevel 的 CompactUnit
             return createUnit(runs, maxLevel, candidateCount);
         }
 
@@ -207,8 +212,8 @@ public class UniversalCompaction implements CompactStrategy {
             outputLevel = Math.max(0, runs.get(runCount).level() - 1);
         }
 
-        // 2. 如果 outputLevel = 0，则将下一个 LevelSortedRun 纳入到 runCount 中，直到下一个 LevelSortedRun 的 level 不为
-        // 0
+        // 2. 如果 outputLevel = 0，则将下一个 LevelSortedRun 纳入到 runCount 中，
+        // 直到下一个 LevelSortedRun 的 level 不为 0
         if (outputLevel == 0) {
             // do not output level 0
             for (int i = runCount; i < runs.size(); i++) {

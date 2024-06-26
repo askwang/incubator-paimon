@@ -64,8 +64,11 @@ public class SortedRun {
 
     public static SortedRun fromUnsorted(
             List<DataFileMeta> unsortedFiles, Comparator<InternalRow> keyComparator) {
+        // SortedRun 中的文件按照 DataFileMeta 的 minKey 进行升序排序，这样就保证了 SortedRun 中的文件是有序的
         unsortedFiles.sort((o1, o2) -> keyComparator.compare(o1.minKey(), o2.minKey()));
         SortedRun run = new SortedRun(unsortedFiles);
+        // 校验 SortedRun 中的多个文件是否是完全升序的，如果不是则说明文件的 key 存在重复
+        // files.get(i).minKey > files.get(i-1).maxKey
         run.validate(keyComparator);
         return run;
     }

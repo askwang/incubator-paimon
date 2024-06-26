@@ -83,7 +83,7 @@ public class MergeTreeCompactTask extends CompactTask {
                 SortedRun run = section.get(0);
                 // No overlapping:
                 // We can just upgrade the large file and just change the level instead of
-                // rewriting it
+                // rewriting it  options.get(TARGET_FILE_SIZE).getBytes() / 10 * 7;
                 // But for small files, we will try to compact it
                 for (DataFileMeta file : run.files()) {
                     if (file.fileSize() < minFileSize) {

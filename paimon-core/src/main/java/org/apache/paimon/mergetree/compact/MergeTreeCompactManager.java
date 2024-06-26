@@ -130,6 +130,11 @@ public class MergeTreeCompactManager extends CompactFutureManager {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Trigger normal compaction. Picking from the following runs\n{}", runs);
             }
+            // askwang-done: full compaction 和 minor compaction 这里的 pick 的 numLevels 都是
+            // levels.numberOfLevels
+            // 对于 full compaction outputLevels 直接合并到 level 5
+            // 对于 minor compaction，pickForSizeAmp 合并到 level 5，pickForSizeRatio（策略 2 和 3） 会根据
+            // SortedRun 计算 outputLevel
             optionalUnit =
                     strategy.pick(levels.numberOfLevels(), runs)
                             .filter(unit -> unit.files().size() > 0)

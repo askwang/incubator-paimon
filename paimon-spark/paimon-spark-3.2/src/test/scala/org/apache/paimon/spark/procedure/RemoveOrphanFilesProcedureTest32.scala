@@ -21,6 +21,7 @@ package org.apache.paimon.spark.procedure
 import org.apache.paimon.fs.Path
 import org.apache.paimon.spark.PaimonSparkTestBase
 import org.apache.paimon.utils.DateTimeUtils
+
 import org.apache.spark.sql.Row
 
 import java.util.concurrent.TimeUnit

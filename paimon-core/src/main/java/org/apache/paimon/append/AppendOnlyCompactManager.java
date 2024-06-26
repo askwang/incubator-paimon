@@ -71,6 +71,8 @@ public class AppendOnlyCompactManager extends CompactFutureManager {
             CompactRewriter rewriter,
             @Nullable CompactionMetrics.Reporter metricsReporter) {
         this.executor = executor;
+        // toCompact 的初始值由 AbstractFileStoreWrite#createWriterContainer 的 restoreFiles 传入。
+        // 根据 sequence number 升序排序
         this.toCompact = new TreeSet<>(fileComparator(false));
         this.toCompact.addAll(restored);
         this.minFileNum = minFileNum;
@@ -82,9 +84,11 @@ public class AppendOnlyCompactManager extends CompactFutureManager {
 
     @Override
     public void triggerCompaction(boolean fullCompaction) {
+        // full compaction CompactProcedure 手动触发，写入时为 false
         if (fullCompaction) {
             triggerFullCompaction();
         } else {
+            // minor compaction
             triggerCompactionWithBestEffort();
         }
     }
@@ -109,7 +113,9 @@ public class AppendOnlyCompactManager extends CompactFutureManager {
         if (taskFuture != null) {
             return;
         }
+        // 挑选一批参与合并的文件
         Optional<List<DataFileMeta>> picked = pickCompactBefore();
+        // picked.ifPresent 语法
         if (picked.isPresent()) {
             compacting = picked.get();
             taskFuture =
@@ -150,6 +156,7 @@ public class AppendOnlyCompactManager extends CompactFutureManager {
         if (result.isPresent()) {
             CompactResult compactResult = result.get();
             if (!compactResult.after().isEmpty()) {
+                // comapct 后，如果最后一个文件还是小于目标大小，则放入 toCompact 继续参与合并
                 // if the last compacted file is still small,
                 // add it back to the head
                 DataFileMeta lastFile = compactResult.after().get(compactResult.after().size() - 1);
@@ -177,10 +184,15 @@ public class AppendOnlyCompactManager extends CompactFutureManager {
             candidates.add(file);
             totalFileSize += file.fileSize();
             fileNum++;
+            // compaction.min.file-num = 5, compaction.max.file-num = 50
             if ((totalFileSize >= targetFileSize && fileNum >= minFileNum)
                     || fileNum >= maxFileNum) {
+                // 写入过程中找到一批需要合并的文件就触发合并
                 return Optional.of(candidates);
             } else if (totalFileSize >= targetFileSize) {
+                // 条件 1：如果文件数小于 minFileNum = 5 个，且文件大小和超过 targetFileSize，
+                // 则移除第一个 large 文件（和 inputs.peekFirst()一样的问题，为啥 pollFirst 是 large 文件）
+                // 条件 2：如果文件数只有一个，且大小超过 targetFileSize ，则移除不参与 compact
                 // let pointer shift one pos to right
                 DataFileMeta removed = candidates.pollFirst();
                 assert removed != null;
@@ -224,6 +236,9 @@ public class AppendOnlyCompactManager extends CompactFutureManager {
 
         @Override
         protected CompactResult doCompact() throws Exception {
+            // TreeSet<DataFileMeta> toCompact;
+            // inputs = new LinkedList<>(toCompact)
+            // askwang-todo: 为什么 input.peekFisrt 就是 large files
             // remove large files
             while (!inputs.isEmpty()) {
                 DataFileMeta file = inputs.peekFirst();
@@ -248,6 +263,7 @@ public class AppendOnlyCompactManager extends CompactFutureManager {
             // do compaction
             List<DataFileMeta> compactBefore = new ArrayList<>();
             List<DataFileMeta> compactAfter = new ArrayList<>();
+            // FULL_COMPACT_MIN_FILE = 3
             if (small > big && inputs.size() >= FULL_COMPACT_MIN_FILE) {
                 compactBefore = new ArrayList<>(inputs);
                 compactAfter = rewriter.rewrite(inputs);
@@ -324,6 +340,7 @@ public class AppendOnlyCompactManager extends CompactFutureManager {
                                 o2.maxSequenceNumber()));
             }
 
+            // 默认按 minSequenceNumber 升序排序
             return Long.compare(o1.minSequenceNumber(), o2.minSequenceNumber());
         };
     }

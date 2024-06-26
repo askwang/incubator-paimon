@@ -19,9 +19,10 @@
 package org.apache.paimon.spark.procedure
 
 import org.apache.paimon.spark.PaimonSparkTestBase
+
+import org.apache.spark.sql.{Dataset, Row}
 import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.streaming.StreamTest
-import org.apache.spark.sql.{Dataset, Row}
 
 class ExpireSnapshotsProcedureTest32 extends PaimonSparkTestBase with StreamTest {
 

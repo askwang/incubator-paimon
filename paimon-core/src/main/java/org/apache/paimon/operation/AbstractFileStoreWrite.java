@@ -371,7 +371,9 @@ public abstract class AbstractFileStoreWrite<T> implements FileStoreWrite<T> {
         Long latestSnapshotId = snapshotManager.latestSnapshotId();
         List<DataFileMeta> restoreFiles = new ArrayList<>();
         // 默认 ignorePreviousFiles=false，会 scan 最新 snapshot 的文件
-        // restoreFiles 在后续调用为 inputFiles
+        // restoreFiles 在 AppendOnlyCompactManager 构造时存放到 toCompact 中
+        // 在后续 compact 的调用为 inputFiles
+        // restoreFiles 在 MergeTreeCompactManager 也会用到，用于构建 levels
         if (!ignorePreviousFiles && latestSnapshotId != null) {
             restoreFiles = scanExistingFileMetas(latestSnapshotId, partition, bucket);
         }

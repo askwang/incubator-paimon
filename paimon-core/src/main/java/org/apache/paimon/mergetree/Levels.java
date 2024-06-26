@@ -60,6 +60,7 @@ public class Levels {
                         numLevels,
                         inputFiles.stream().mapToInt(DataFileMeta::level).max().orElse(-1) + 1);
         checkArgument(restoredNumLevels > 1, "Number of levels must be at least 2.");
+        // levle 0 多个 SortedRun 的顺序，这也解释了为什么新写的文件在 level0 对象中会靠前
         this.level0 =
                 new TreeSet<>(
                         (a, b) -> {
@@ -80,6 +81,7 @@ public class Levels {
         }
 
         Map<Integer, List<DataFileMeta>> levelMap = new HashMap<>();
+        // inputFiles 即 AbstractFileStoreWrite#createWriterContainer 中的 restoreFiles
         for (DataFileMeta file : inputFiles) {
             levelMap.computeIfAbsent(file.level(), level -> new ArrayList<>()).add(file);
         }
@@ -204,6 +206,7 @@ public class Levels {
         }
     }
 
+    /** 根据 restoreFiles 构建 levels 对象时调用. */
     private void updateLevel(int level, List<DataFileMeta> before, List<DataFileMeta> after) {
         if (before.isEmpty() && after.isEmpty()) {
             return;

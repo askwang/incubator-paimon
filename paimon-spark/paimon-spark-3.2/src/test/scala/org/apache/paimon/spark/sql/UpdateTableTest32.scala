@@ -21,6 +21,7 @@ package org.apache.paimon.spark.sql
 import org.apache.paimon.CoreOptions
 import org.apache.paimon.spark.PaimonSparkTestBase
 import org.apache.paimon.spark.catalyst.analysis.Update
+
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 
 class UpdateTableTest32 extends PaimonSparkTestBase {

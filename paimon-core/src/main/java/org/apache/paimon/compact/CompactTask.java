@@ -46,6 +46,7 @@ public abstract class CompactTask implements Callable<CompactResult> {
         MetricUtils.safeCall(this::startTimer, LOG);
         try {
             long startMillis = System.currentTimeMillis();
+            // doCompact 本质是从这里触发的，然后由子类 FullCompactTask 和 AutoCompactTask 执行
             CompactResult result = doCompact();
             if (LOG.isDebugEnabled()) {
                 logMetric(startMillis, result.before(), result.after());

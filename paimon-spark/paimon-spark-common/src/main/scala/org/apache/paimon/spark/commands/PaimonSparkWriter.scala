@@ -84,6 +84,7 @@ case class PaimonSparkWriter(table: FileStoreTable) {
             val write = newWrite()
             try {
               iter.foreach(row => write.write(row))
+              // prepareCommit 逻辑移到了 finish 方法内
               write.finish().asScala
             } finally {
               write.close()

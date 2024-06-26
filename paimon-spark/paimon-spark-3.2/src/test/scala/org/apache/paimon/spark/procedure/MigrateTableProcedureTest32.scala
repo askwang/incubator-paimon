@@ -19,6 +19,7 @@
 package org.apache.paimon.spark.procedure
 
 import org.apache.paimon.spark.PaimonHiveTestBase
+
 import org.apache.spark.sql.Row
 import org.assertj.core.api.Assertions.assertThatThrownBy
 
