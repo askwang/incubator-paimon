@@ -27,14 +27,17 @@ import org.apache.paimon.types.RowType;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.paimon.CoreOptions.BUCKET;
 import static org.apache.paimon.CoreOptions.BUCKET_KEY;
+import static org.apache.paimon.utils.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -65,6 +68,32 @@ public class FixedBucketRowKeyExtractorTest {
     }
 
     @Test
+    public void testBucketHashCode() {
+        // numBucket = 50
+        List<Integer> list = new ArrayList<>();
+        List<Integer> iList = new ArrayList<>();
+        int recordNum = 10;
+        for (int i = 1; i <= recordNum; i++) {
+            iList.add(i);
+            list.add(bucket(extractor("", "a"), GenericRow.of(i,2,3)));
+        }
+
+        System.out.println("origin: " + list.size());
+        System.out.println("i-ta: " + iList);
+        System.out.println("data: " + list);
+
+        List<Integer> distinctList = list.stream().distinct().collect(Collectors.toList());
+        System.out.println("distinct list: " + distinctList.size());
+
+        List<Integer> sortedList = distinctList.stream().sorted().collect(Collectors.toList());
+        System.out.println("sorted list: " + sortedList);
+    }
+
+    private FixedBucketRowKeyExtractor extractor(String partK, String bk, String pk) {
+        return extractor(partK, bk, pk, 10);
+    }
+
+    @Test
     public void testIllegalBucket() {
         GenericRow row = GenericRow.of(5, 6, 7);
         assertThatThrownBy(() -> bucket(extractor("", "", "a", -1), row))
@@ -80,9 +109,7 @@ public class FixedBucketRowKeyExtractorTest {
         return extractor("", bk, pk);
     }
 
-    private FixedBucketRowKeyExtractor extractor(String partK, String bk, String pk) {
-        return extractor(partK, bk, pk, 100);
-    }
+
 
     private FixedBucketRowKeyExtractor extractor(
             String partK, String bk, String pk, int numBucket) {
