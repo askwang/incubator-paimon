@@ -20,6 +20,7 @@ package org.apache.paimon.mergetree.compact;
 
 import org.apache.paimon.annotation.VisibleForTesting;
 import org.apache.paimon.compact.CompactUnit;
+import org.apache.paimon.io.DataFileMeta;
 import org.apache.paimon.mergetree.LevelSortedRun;
 import org.apache.paimon.mergetree.SortedRun;
 
@@ -29,8 +30,10 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Level;
 
 /**
  * Universal Compaction Style is a compaction style, targeting the use cases requiring lower write
@@ -140,6 +143,44 @@ public class UniversalCompaction implements CompactStrategy {
         return null;
     }
 
+    CompactUnit pickForSizeAmpAskwang(int maxLevel, List<LevelSortedRun> runs) {
+        if (runs.size() < numRunCompactionTrigger) {
+            return null;
+        }
+        // 前 n-1 个 SortedRun size 大小
+        long candidateSize =
+                runs.subList(0, runs.size() - 1).stream()
+                        .map(levelSortedRun -> levelSortedRun.run().totalSize())
+                        .mapToLong(Long::longValue)
+                        .sum();
+
+        long earliestRunSize = runs.get(runs.size() - 1).run().totalSize();
+
+        if (candidateSize * 100 > maxSizeAmp * earliestRunSize) {
+            CompactUnit compactUnit = fromLevelRunsAskwang(maxLevel, runs);
+            return compactUnit;
+        }
+        return null;
+    }
+
+    public CompactUnit fromLevelRunsAskwang(int maxLevel, List<LevelSortedRun> runs) {
+        List<DataFileMeta> list = new ArrayList<>();
+        for (LevelSortedRun run : runs) {
+            list.addAll(run.run().files());
+        }
+        return new CompactUnit() {
+            @Override
+            public int outputLevel() {
+                return maxLevel;
+            }
+
+            @Override
+            public List<DataFileMeta> files() {
+                return list;
+            }
+        };
+    }
+
     @VisibleForTesting
     CompactUnit pickForSizeRatio(int maxLevel, List<LevelSortedRun> runs) {
         if (runs.size() < numRunCompactionTrigger) {
@@ -169,6 +210,8 @@ public class UniversalCompaction implements CompactStrategy {
      * 1 1 1 4 5 => 3 4 5.
      * 1 3 4 5 (no compaction triggered).
      * 1 1 3 4 5 => 2 3 4 5.
+     *
+     * boolean forcePick 参数是用于 ForceUpLevel0Compaction 策略
      */
     public CompactUnit pickForSizeRatio(
             int maxLevel, List<LevelSortedRun> runs, int candidateCount, boolean forcePick) {
@@ -188,6 +231,30 @@ public class UniversalCompaction implements CompactStrategy {
             return createUnit(runs, maxLevel, candidateCount);
         }
 
+        return null;
+    }
+
+    public CompactUnit pickForSizeRatioAskwang(
+            int maxLevel, List<LevelSortedRun> runs, int candidateCount, boolean forcePick) {
+        long candidateSize = 0;
+        for (int i = 0; i < candidateCount; i++) {
+            candidateSize += runs.get(i).run().totalSize();
+        }
+        for (int i = candidateCount; i < runs.size(); i++) {
+            long nextTotalSize = runs.get(i).run().totalSize();
+            // 当下一个 SortedRun 不满足 SizeRatio 条件，则 candidate 选取完毕
+            if (candidateSize * 1.01 < nextTotalSize) {
+                break;
+            }
+            candidateCount++;
+            candidateSize += nextTotalSize;
+        }
+
+        // 如果 candidateCount = 1，
+        // runs.subList(0, runCount) 取一个 SortedRun，outputLevel = 0，没意义
+        if (forcePick || candidateCount > 1) {
+            return createUnit(runs, maxLevel, candidateCount);
+        }
         return null;
     }
 
@@ -219,6 +286,9 @@ public class UniversalCompaction implements CompactStrategy {
             for (int i = runCount; i < runs.size(); i++) {
                 LevelSortedRun next = runs.get(i);
                 runCount++;
+                // level0 的合并至少下层到一个非 level0 的 level
+                // runs 存在都有有数据的 SortedRun，所以 next.level 一般不会出现空值
+                // 如果 next.level 一直等于 0，则 runCount 一直自增，直到等于 runs.size，然后下面更新 outputLevle
                 if (next.level() != 0) {
                     outputLevel = next.level();
                     break;

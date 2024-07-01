@@ -160,6 +160,7 @@ public class Levels {
     public List<LevelSortedRun> levelSortedRuns() {
         List<LevelSortedRun> runs = new ArrayList<>();
         level0.forEach(file -> runs.add(new LevelSortedRun(0, SortedRun.fromSingle(file))));
+        // levels 对象可能为空，但 runs 一定不会为空，都存在 files
         for (int i = 0; i < levels.size(); i++) {
             SortedRun run = levels.get(i);
             if (run.nonEmpty()) {
