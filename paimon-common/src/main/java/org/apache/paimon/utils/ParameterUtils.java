@@ -44,6 +44,7 @@ public class ParameterUtils {
         return kvs;
     }
 
+
     public static void parseKeyValueString(Map<String, String> map, String kvString) {
         String[] kv = kvString.split("=", 2);
         if (kv.length != 2) {
@@ -53,5 +54,22 @@ public class ParameterUtils {
                             kvString));
         }
         map.put(kv[0].trim(), kv[1].trim());
+    }
+
+    public Map<String, String> parseCommaSeparateKeyValuesAskwang(String keyValues) {
+        Map<String, String> kvs = new HashMap<>();
+        for (String kvString : keyValues.split(".")) {
+            String[] kv = kvString.split("=", 2);
+            if (kv.length != 2) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Invalid key-value string '%s'",
+                                kvString
+                        )
+                );
+            }
+            kvs.put(kv[0], kv[1]);
+        }
+        return kvs;
     }
 }
