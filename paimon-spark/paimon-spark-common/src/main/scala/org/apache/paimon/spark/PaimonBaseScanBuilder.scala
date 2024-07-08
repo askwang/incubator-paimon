@@ -60,6 +60,8 @@ abstract class PaimonBaseScanBuilder(table: Table)
     val visitor = new PartitionPredicateVisitor(table.partitionKeys())
     filters.foreach {
       filter =>
+        // 将 EqualTo(dt,2024-04-11 11:01:00.0)] 转为为 Equal(dt, 2024-04-11T11:01)]
+        // spark 引擎这里没有做转换
         val predicate = converter.convertIgnoreFailure(filter)
         if (predicate == null) {
           postScan.append(filter)

@@ -152,7 +152,13 @@ public class SnapshotsTable implements ReadonlyTable {
 
         @Override
         public Plan innerPlan() {
-            return () -> Collections.singletonList(new SnapshotsSplit(location));
+            // return () -> Collections.singletonList(new SnapshotsSplit(location));
+            return new Plan() {
+                @Override
+                public List<Split> splits() {
+                    return Collections.singletonList(new SnapshotsSplit(location));
+                }
+            };
         }
     }
 
