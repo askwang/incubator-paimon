@@ -50,8 +50,17 @@ abstract class PaimonBaseScanBuilder(table: Table)
    * Pushes down filters, and returns filters that need to be evaluated after scanning. <p> Rows
    * should be returned from the data source if and only if all of the filters match. That is,
    * filters must be interpreted as ANDed together.
+   *
+   * <p>spark-sql INFO V2ScanRelationPushDown:
+   * Pushing operators to z_paimon_pk_table
+   * Pushed Filters: IsNotNull(dt), EqualTo(dt,2024-04-11T03:01:00Z)
+   * Post-Scan Filters: isnotnull(dt#3),(dt#3 = 2024-04-11 11:01:00)
+   * spark 侧输出的 Post-scan Filter 没问题是 spark 进行了 filter 的 translateFilterWithMapping，
+   * 之后又进行了 rebuildExpressionFromFilter 还原
    */
   override def pushFilters(filters: Array[Filter]): Array[Filter] = {
+    // spark 传进来的 filter: Array[Filter] 就是转换为 utc 类型的.  EqualTo(dt,2024-04-11T03:01:00Z)
+    // 相当于 paimon 是基于错误的 filter 进行转换的
     val pushable = mutable.ArrayBuffer.empty[(Filter, Predicate)]
     val postScan = mutable.ArrayBuffer.empty[Filter]
     val reserved = mutable.ArrayBuffer.empty[Filter]
@@ -60,8 +69,6 @@ abstract class PaimonBaseScanBuilder(table: Table)
     val visitor = new PartitionPredicateVisitor(table.partitionKeys())
     filters.foreach {
       filter =>
-        // 将 EqualTo(dt,2024-04-11 11:01:00.0)] 转为为 Equal(dt, 2024-04-11T11:01)]
-        // spark 引擎这里没有做转换
         val predicate = converter.convertIgnoreFailure(filter)
         if (predicate == null) {
           postScan.append(filter)
@@ -84,6 +91,7 @@ abstract class PaimonBaseScanBuilder(table: Table)
     postScan.toArray
   }
 
+  // 这里只是接口实现，将结果返回给 Spark Pushed Filters
   override def pushedFilters(): Array[Filter] = {
     pushed.map(_._1)
   }
