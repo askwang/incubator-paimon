@@ -20,6 +20,11 @@
 package org.apache.paimon.spark.sql
 
 import org.apache.paimon.spark.PaimonSparkTestBase
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.analysis.Analyzer
+import org.apache.spark.sql.catalyst.optimizer.Optimizer
+import org.apache.spark.sql.catalyst.parser.ParserInterface
+import org.apache.spark.sql.execution.SparkPlanner
 
 /**
  * @author askwang
@@ -27,17 +32,86 @@ import org.apache.paimon.spark.PaimonSparkTestBase
  */
 class AskwangSQLQueryTest extends PaimonSparkTestBase{
 
-  test("select timestamp field by where for append table") {
+  test("sql query with filter timestamp") {
     withTable("tb") {
-      spark.conf.set("spark.sql.planChangeLog.level", "INFO")
+      spark.sql("SET TIME ZONE 'Asia/Shanghai';")
+      // spark.conf.set("spark.sql.planChangeLog.level", "INFO")
+      spark.conf.set("spark.sql.datetime.java8API.enabled", "true")
       println("version: " + sparkVersion)
       spark.sql(s"CREATE TABLE tb (id INT, dt TIMESTAMP) using paimon TBLPROPERTIES ('file.format'='parquet')")
       val ds = sql("INSERT INTO `tb` VALUES (1,cast(\"2024-04-11 11:01:00\" as Timestamp))")
       val data = sql("SELECT * FROM `tb` where dt ='2024-04-11 11:01:00' ")
-      println(data.queryExecution)
+      println(spark.conf.get("spark.sql.session.timeZone"))
       println(data.show())
-      println("=====")
       println(data.explain(true))
     }
   }
+
+  // not
+  test("writ pk table with pk null int type") {
+    withTable("tb") {
+      spark.conf.set("spark.sql.datetime.java8API.enabled", "false")
+      spark.sql(s"CREATE TABLE tb (id INT, dt string) " +
+        s"using paimon " +
+        s"TBLPROPERTIES ('file.format'='parquet', 'primary-key'='id', 'bucket'='1')")
+      val ds = sql("INSERT INTO `tb` VALUES (cast(NULL as int),cast(NULL as string))")
+      val data = sql("SELECT * FROM `tb`")
+      println(data.show())
+    }
+  }
+
+  // ok
+  test("writ pk table with pk null string type") {
+    withTable("tb") {
+      spark.conf.set("spark.sql.datetime.java8API.enabled", "false")
+      spark.sql(s"CREATE TABLE tb (id string, dt string) " +
+        s"using paimon " +
+        s"TBLPROPERTIES ('file.format'='parquet', 'primary-key'='id', 'bucket'='1')")
+      val ds = sql("INSERT INTO `tb` VALUES (cast(NULL as string),cast(NULL as string))")
+      val data = sql("SELECT * FROM `tb`")
+      println(data.show())
+    }
+  }
+
+  // not ok
+  test("writ pk table with pk null long type") {
+    withTable("tb") {
+      spark.conf.set("spark.sql.datetime.java8API.enabled", "false")
+      spark.sql(s"CREATE TABLE tb (id long, dt string) " +
+        s"using paimon " +
+        s"TBLPROPERTIES ('file.format'='parquet', 'primary-key'='id', 'bucket'='1')")
+//      val ds = sql("INSERT INTO `tb` VALUES (cast(NULL as long),cast(NULL as string))")
+
+      val query2 = "INSERT INTO `tb` VALUES (cast(NULL as long),cast(NULL as string))"
+      val query = "INSERT INTO `tb` VALUES (NULL, NULL)"
+
+      explainPlan(query, spark)
+    }
+  }
+
+  def explainPlan(query: String, spark: SparkSession) = {
+    val (parser, analyzer, optimizer, planner) = analysisEntry(spark)
+    val parsedPlan = parser.parsePlan(query)
+    val analyzedPlan = analyzer.execute(parsedPlan)
+    val optimizedPlan = optimizer.execute(analyzedPlan)
+    val sparkPlan = planner.plan(optimizedPlan).next()
+    println("[askwang] ================parsedPlan===================")
+    println(parsedPlan)
+    println("[askwang] ================analyzedPlan===================")
+    println(analyzedPlan)
+    println("[askwang] ================optimizedPlan===================")
+    println(optimizedPlan)
+    println("[askwang] ================sparkPlan===================")
+    println(sparkPlan)
+  }
+
+  def analysisEntry(spark: SparkSession): (ParserInterface, Analyzer, Optimizer, SparkPlanner) = {
+    val parser = spark.sessionState.sqlParser
+    val analyzer = spark.sessionState.analyzer
+    val optimizer = spark.sessionState.optimizer
+    val planner = spark.sessionState.planner
+    (parser, analyzer, optimizer, planner)
+  }
+
+
 }

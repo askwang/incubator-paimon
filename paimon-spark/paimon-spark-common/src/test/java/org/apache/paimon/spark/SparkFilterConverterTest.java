@@ -45,6 +45,7 @@ import java.sql.Date;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -169,6 +170,25 @@ public class SparkFilterConverterTest {
 
         assertThat(timestampExpression).isEqualTo(rawExpression);
         assertThat(instantExpression).isEqualTo(rawExpression);
+    }
+
+    @Test
+    public void testInstant() {
+        // Asia/Shanghai
+        ZoneId zoneId = ZoneId.systemDefault();
+        System.out.println(zoneId);
+        java.sql.Timestamp timestamp = java.sql.Timestamp.valueOf("2024-04-11 11:01:00");
+
+        // 2024-04-11 11:01:00.0
+        System.out.println(timestamp);
+        Instant instant1 = timestamp.toInstant();
+
+        // // 2024-04-11T03:01:00Z
+        System.out.println(instant1);
+
+        LocalDateTime localDateTime1 = instant1.atZone(ZoneId.systemDefault()).toLocalDateTime();
+        // 2024-04-11T11:01
+        System.out.println(localDateTime1);
     }
 
     @Test

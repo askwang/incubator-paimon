@@ -32,10 +32,12 @@ import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.sql.Time;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -262,10 +264,10 @@ public class PredicateBuilder {
                 return (int) ChronoUnit.DAYS.between(epochDay, localDate);
             case TIME_WITHOUT_TIME_ZONE:
                 LocalTime localTime;
-                if (o instanceof java.sql.Time) {
-                    localTime = ((java.sql.Time) o).toLocalTime();
-                } else if (o instanceof java.time.LocalTime) {
-                    localTime = (java.time.LocalTime) o;
+                if (o instanceof Time) {
+                    localTime = ((Time) o).toLocalTime();
+                } else if (o instanceof LocalTime) {
+                    localTime = (LocalTime) o;
                 } else {
                     throw new UnsupportedOperationException(
                             "Unexpected time literal of class " + o.getClass().getName());
@@ -278,6 +280,16 @@ public class PredicateBuilder {
                 int scale = decimalType.getScale();
                 return Decimal.fromBigDecimal((BigDecimal) o, precision, scale);
             case TIMESTAMP_WITHOUT_TIME_ZONE:
+                Timestamp ts;
+                System.out.println(ZoneId.systemDefault());
+                if (o instanceof  Instant) {
+                    Instant instant = (Instant) o;
+                    LocalDateTime localDateTime = instant.atZone(ZoneId.systemDefault()).toLocalDateTime();
+                    ts = Timestamp.fromLocalDateTime(localDateTime);
+                } else {
+                    throw new UnsupportedOperationException("Unsupported object: " + o);
+                }
+                return ts;
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 Timestamp timestamp;
                 if (o instanceof java.sql.Timestamp) {
