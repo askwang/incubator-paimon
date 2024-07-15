@@ -374,7 +374,8 @@ public class Snapshot {
     public List<ManifestFileMeta> dataManifests(ManifestList manifestList) {
         List<ManifestFileMeta> result = new ArrayList<>();
         result.addAll(manifestList.read(baseManifestList));
-        result.addAll(deltaManifests(manifestList));
+        // result.addAll(deltaManifests(manifestList));
+        result.addAll(manifestList.read(deltaManifestList));
         return result;
     }
 

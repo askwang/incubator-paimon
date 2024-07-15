@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,17 +19,21 @@
 package org.apache.paimon.spark.sql
 
 import org.apache.paimon.spark.PaimonSparkTestBase
-import org.apache.spark.sql.SparkSession
+
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.analysis.Analyzer
 import org.apache.spark.sql.catalyst.optimizer.Optimizer
 import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.execution.SparkPlanner
+import org.apache.spark.sql.internal.SQLConf
 
 /**
- * @author askwang
- * @date 2024/7/6
+ * @author
+ *   askwang
+ * @date
+ *   2024/7/6
  */
-class AskwangSQLQueryTest extends PaimonSparkTestBase{
+class AskwangSQLQueryTest extends PaimonSparkTestBase {
 
   test("sql query with filter timestamp") {
     withTable("tb") {
@@ -38,7 +41,8 @@ class AskwangSQLQueryTest extends PaimonSparkTestBase{
       // spark.conf.set("spark.sql.planChangeLog.level", "INFO")
       spark.conf.set("spark.sql.datetime.java8API.enabled", "true")
       println("version: " + sparkVersion)
-      spark.sql(s"CREATE TABLE tb (id INT, dt TIMESTAMP) using paimon TBLPROPERTIES ('file.format'='parquet')")
+      spark.sql(
+        s"CREATE TABLE tb (id INT, dt TIMESTAMP) using paimon TBLPROPERTIES ('file.format'='parquet')")
       val ds = sql("INSERT INTO `tb` VALUES (1,cast(\"2024-04-11 11:01:00\" as Timestamp))")
       val data = sql("SELECT * FROM `tb` where dt ='2024-04-11 11:01:00' ")
       println(spark.conf.get("spark.sql.session.timeZone"))
@@ -47,45 +51,22 @@ class AskwangSQLQueryTest extends PaimonSparkTestBase{
     }
   }
 
-  // not
-  test("writ pk table with pk null int type") {
+  // int/long type pk field insert null failed. string is ok.
+  // new version fix this, pk filed check should not null.
+  test("writ pk table with pk null long/int type") {
     withTable("tb") {
-      spark.conf.set("spark.sql.datetime.java8API.enabled", "false")
-      spark.sql(s"CREATE TABLE tb (id INT, dt string) " +
-        s"using paimon " +
-        s"TBLPROPERTIES ('file.format'='parquet', 'primary-key'='id', 'bucket'='1')")
-      val ds = sql("INSERT INTO `tb` VALUES (cast(NULL as int),cast(NULL as string))")
-      val data = sql("SELECT * FROM `tb`")
-      println(data.show())
-    }
-  }
+      withSQLConf(SQLConf.DATETIME_JAVA8API_ENABLED.key -> "false") {
+        spark.sql(
+          s"CREATE TABLE tb (id long, dt string) " +
+            s"using paimon " +
+            s"TBLPROPERTIES ('file.format'='parquet', 'primary-key'='id', 'bucket'='1')")
+        //      val ds = sql("INSERT INTO `tb` VALUES (cast(NULL as long),cast(NULL as string))")
 
-  // ok
-  test("writ pk table with pk null string type") {
-    withTable("tb") {
-      spark.conf.set("spark.sql.datetime.java8API.enabled", "false")
-      spark.sql(s"CREATE TABLE tb (id string, dt string) " +
-        s"using paimon " +
-        s"TBLPROPERTIES ('file.format'='parquet', 'primary-key'='id', 'bucket'='1')")
-      val ds = sql("INSERT INTO `tb` VALUES (cast(NULL as string),cast(NULL as string))")
-      val data = sql("SELECT * FROM `tb`")
-      println(data.show())
-    }
-  }
+        val query2 = "INSERT INTO `tb` VALUES (cast(NULL as long),cast(NULL as string))"
+        val query = "INSERT INTO `tb` VALUES (NULL, NULL)"
 
-  // not ok
-  test("writ pk table with pk null long type") {
-    withTable("tb") {
-      spark.conf.set("spark.sql.datetime.java8API.enabled", "false")
-      spark.sql(s"CREATE TABLE tb (id long, dt string) " +
-        s"using paimon " +
-        s"TBLPROPERTIES ('file.format'='parquet', 'primary-key'='id', 'bucket'='1')")
-//      val ds = sql("INSERT INTO `tb` VALUES (cast(NULL as long),cast(NULL as string))")
-
-      val query2 = "INSERT INTO `tb` VALUES (cast(NULL as long),cast(NULL as string))"
-      val query = "INSERT INTO `tb` VALUES (NULL, NULL)"
-
-      explainPlan(query, spark)
+        explainPlan(query, spark)
+      }
     }
   }
 
@@ -113,5 +94,19 @@ class AskwangSQLQueryTest extends PaimonSparkTestBase{
     (parser, analyzer, optimizer, planner)
   }
 
+  def showQueryExecutionPlanInfo(analyzedDF: DataFrame): Unit = {
+    val ana = analyzedDF.queryExecution.analyzed
+    println("== Analyzed Logical Plan ==")
+    println(ana)
+    // println( ana.prettyJson)
+    println("== Optimized Logical Plan ==")
+    val opt = analyzedDF.queryExecution.optimizedPlan
+    println(opt)
+    // println( opt.prettyJson)
+    println("== Physical Plan ==")
+    println(analyzedDF.queryExecution.sparkPlan)
+    println("== executedPlan ==")
+    println(analyzedDF.queryExecution.executedPlan)
+  }
 
 }

@@ -44,7 +44,6 @@ public class ParameterUtils {
         return kvs;
     }
 
-
     public static void parseKeyValueString(Map<String, String> map, String kvString) {
         String[] kv = kvString.split("=", 2);
         if (kv.length != 2) {
@@ -62,11 +61,7 @@ public class ParameterUtils {
             String[] kv = kvString.split("=", 2);
             if (kv.length != 2) {
                 throw new IllegalArgumentException(
-                        String.format(
-                                "Invalid key-value string '%s'",
-                                kvString
-                        )
-                );
+                        String.format("Invalid key-value string '%s'", kvString));
             }
             kvs.put(kv[0], kv[1]);
         }

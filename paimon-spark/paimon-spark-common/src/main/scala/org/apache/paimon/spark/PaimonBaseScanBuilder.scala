@@ -51,12 +51,10 @@ abstract class PaimonBaseScanBuilder(table: Table)
    * should be returned from the data source if and only if all of the filters match. That is,
    * filters must be interpreted as ANDed together.
    *
-   * <p>spark-sql INFO V2ScanRelationPushDown:
-   * Pushing operators to z_paimon_pk_table
-   * Pushed Filters: IsNotNull(dt), EqualTo(dt,2024-04-11T03:01:00Z)
-   * Post-Scan Filters: isnotnull(dt#3),(dt#3 = 2024-04-11 11:01:00)
-   * spark 侧输出的 Post-scan Filter 没问题是 spark 进行了 filter 的 translateFilterWithMapping，
-   * 之后又进行了 rebuildExpressionFromFilter 还原
+   * <p>spark-sql INFO V2ScanRelationPushDown: Pushing operators to z_paimon_pk_table Pushed
+   * Filters: IsNotNull(dt), EqualTo(dt,2024-04-11T03:01:00Z) Post-Scan Filters:
+   * isnotnull(dt#3),(dt#3 = 2024-04-11 11:01:00) spark 侧输出的 Post-scan Filter 没问题是 spark 进行了 filter
+   * 的 translateFilterWithMapping， 之后又进行了 rebuildExpressionFromFilter 还原
    */
   override def pushFilters(filters: Array[Filter]): Array[Filter] = {
     // spark 传进来的 filter: Array[Filter] 就是转换为 utc 类型的.  EqualTo(dt,2024-04-11T03:01:00Z)

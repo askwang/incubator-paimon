@@ -310,7 +310,7 @@ public class TagManager {
             for (Path path : paths) {
                 String tagName = path.getName().substring(TAG_PREFIX.length());
 
-                // Predicate<String> filter = s -> true. 只要是字符串就返回 true
+                // Predicate<String> filter = s -> true. 只要是字符串就返回 true，if条件不满足
                 if (!filter.test(tagName)) {
                     continue;
                 }
@@ -412,6 +412,7 @@ public class TagManager {
         List<Snapshot> snapshots = new ArrayList<>();
         int right = findPreviousTag(taggedSnapshots, endExclusive);
         if (right >= 0) {
+            // askwang-todo: left 会多一个无效的值，参考 findNextOrEqualTagAskwang
             int left = Math.max(findPreviousOrEqualTag(taggedSnapshots, beginInclusive), 0);
             for (int i = left; i <= right; i++) {
                 snapshots.add(taggedSnapshots.get(i));
@@ -420,9 +421,39 @@ public class TagManager {
         return snapshots;
     }
 
+    /**
+     * 找到 taggedSnapshots 和 snapshot [begin, end) id 直接重叠的 snapshot 缩小 taggedSnapshots 中的 snapshot.
+     * id 的范围 [left, right); 第一次小于或等于 begin 的 id 为 left，（优化：第一次大于或等于 begin 的 id 为 left） 第一次小于 end 的.
+     * id 为 right.
+     */
+    private static List<Snapshot> findOverlappedSnapshotsAskwang(
+            List<Snapshot> taggedSnapshot, long beginInclusive, long endExclusive) {
+        List<Snapshot> snapshots = new ArrayList<>();
+        int right = findPreviousTag(taggedSnapshot, endExclusive);
+        if (right >= 0) {
+            int left = Math.max(findNextOrEqualTagAskwang(taggedSnapshot, beginInclusive), 0);
+            for (int i = left; i <= right; i++) {
+                snapshots.add(taggedSnapshot.get(i));
+            }
+        }
+
+        return snapshots;
+    }
+
     public static int findPreviousTag(List<Snapshot> taggedSnapshots, long targetSnapshotId) {
         for (int i = taggedSnapshots.size() - 1; i >= 0; i--) {
             if (taggedSnapshots.get(i).id() < targetSnapshotId) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** 减少不重叠的 snapshot 范围 [begin, end): [10, 15) taggedSnapshots: [7, 9, 11, 12]. */
+    private static int findNextOrEqualTagAskwang(
+            List<Snapshot> taggedSnapshots, long targetSnapshotId) {
+        for (int i = 0; i < targetSnapshotId; i++) {
+            if (taggedSnapshots.get(i).id() >= targetSnapshotId) {
                 return i;
             }
         }

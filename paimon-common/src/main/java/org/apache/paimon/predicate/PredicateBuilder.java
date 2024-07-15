@@ -280,18 +280,26 @@ public class PredicateBuilder {
                 int scale = decimalType.getScale();
                 return Decimal.fromBigDecimal((BigDecimal) o, precision, scale);
             case TIMESTAMP_WITHOUT_TIME_ZONE:
-                Timestamp ts;
+                // spark PushedFilters 结果是将 Timestamp 转为了时区无关的 Instant
+                // 这里如果是 Instant 类型则需要重新转换为时区感知的时间
+                // 参考 DateTimeUtils
+                Timestamp timestamp;
                 System.out.println(ZoneId.systemDefault());
-                if (o instanceof  Instant) {
+                if (o instanceof java.sql.Timestamp) {
+                    timestamp = Timestamp.fromSQLTimestamp((java.sql.Timestamp) o);
+                } else if (o instanceof Instant) {
                     Instant instant = (Instant) o;
-                    LocalDateTime localDateTime = instant.atZone(ZoneId.systemDefault()).toLocalDateTime();
-                    ts = Timestamp.fromLocalDateTime(localDateTime);
+                    LocalDateTime localDateTime =
+                            instant.atZone(ZoneId.systemDefault()).toLocalDateTime();
+                    timestamp = Timestamp.fromLocalDateTime(localDateTime);
+                } else if (o instanceof LocalDateTime) {
+                    timestamp = Timestamp.fromLocalDateTime((LocalDateTime) o);
                 } else {
                     throw new UnsupportedOperationException("Unsupported object: " + o);
                 }
-                return ts;
+                return timestamp;
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                Timestamp timestamp;
+                // Timestamp timestamp;
                 if (o instanceof java.sql.Timestamp) {
                     timestamp = Timestamp.fromSQLTimestamp((java.sql.Timestamp) o);
                 } else if (o instanceof Instant) {

@@ -37,7 +37,6 @@ import java.util.stream.Collectors;
 
 import static org.apache.paimon.CoreOptions.BUCKET;
 import static org.apache.paimon.CoreOptions.BUCKET_KEY;
-import static org.apache.paimon.utils.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -75,7 +74,7 @@ public class FixedBucketRowKeyExtractorTest {
         int recordNum = 10;
         for (int i = 1; i <= recordNum; i++) {
             iList.add(i);
-            list.add(bucket(extractor("", "a"), GenericRow.of(i,2,3)));
+            list.add(bucket(extractor("", "a"), GenericRow.of(i, 2, 3)));
         }
 
         System.out.println("origin: " + list.size());
@@ -108,8 +107,6 @@ public class FixedBucketRowKeyExtractorTest {
     private FixedBucketRowKeyExtractor extractor(String bk, String pk) {
         return extractor("", bk, pk);
     }
-
-
 
     private FixedBucketRowKeyExtractor extractor(
             String partK, String bk, String pk, int numBucket) {

@@ -126,6 +126,7 @@ public interface FileEntry {
         }
     }
 
+    // 读取 manifest file 中的内容，对文件进行 ADD 或 DELETE
     static <T extends FileEntry> void mergeEntries(Iterable<T> entries, Map<Identifier, T> map) {
         for (T entry : entries) {
             Identifier identifier = entry.identifier();

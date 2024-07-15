@@ -165,6 +165,7 @@ public abstract class FileDeletionBase<T extends Snapshot> {
                 .add(entry.bucket());
     }
 
+    // 这里的 manifestList 是 snapshot.deltaManifestList()
     public void cleanUnusedDataFiles(String manifestList, Predicate<ManifestEntry> skipper) {
         // try read manifests
         List<String> manifestFileNames = readManifestFileNames(tryReadManifestList(manifestList));
@@ -193,6 +194,7 @@ public abstract class FileDeletionBase<T extends Snapshot> {
         dataFileToDelete.forEach(
                 (path, pair) -> {
                     ManifestEntry entry = pair.getLeft();
+                    // skipper.test(entry)=true, 表示 entry 被忽略，不被删除
                     // check whether we should skip the data file
                     if (!skipper.test(entry)) {
                         // delete data files
@@ -295,10 +297,12 @@ public abstract class FileDeletionBase<T extends Snapshot> {
             String fileName = manifest.fileName();
             if (!skippingSet.contains(fileName)) {
                 toDeleteManifests.add(fileName);
+                // 已经删除的 manifest-file 添加到 skippingSet，避免多次删除
                 // to avoid other snapshots trying to delete again
                 skippingSet.add(fileName);
             }
         }
+        // 删除 manifest-list 文件
         if (!skippingSet.contains(manifestName)) {
             toDeleteManifests.add(manifestName);
         }
@@ -327,7 +331,7 @@ public abstract class FileDeletionBase<T extends Snapshot> {
             addMergedDataFiles(cachedTagDataFiles, taggedSnapshots.get(index));
         }
 
-        return entry -> index >= 0 && containsDataFile(cachedTagDataFiles, entry);
+        return entry -> (index >= 0 && containsDataFile(cachedTagDataFiles, entry));
     }
 
     /**
@@ -364,6 +368,7 @@ public abstract class FileDeletionBase<T extends Snapshot> {
     protected void addMergedDataFiles(
             Map<BinaryRow, Map<Integer, Set<String>>> dataFiles, Snapshot snapshot)
             throws IOException {
+        // 从 snapshot 对应的 manifest 读取 DataFile 文件
         for (ManifestEntry entry : readMergedDataFiles(snapshot)) {
             dataFiles
                     .computeIfAbsent(entry.partition(), p -> new HashMap<>())
@@ -373,6 +378,7 @@ public abstract class FileDeletionBase<T extends Snapshot> {
     }
 
     protected Collection<ManifestEntry> readMergedDataFiles(Snapshot snapshot) throws IOException {
+        // 读取 baseManifestList 和 deltaManifestList 中包含的 manifestfile
         // read data manifests
         List<String> files = tryReadDataManifests(snapshot);
 
@@ -384,6 +390,7 @@ public abstract class FileDeletionBase<T extends Snapshot> {
             FileEntry.mergeEntries(entries, map);
         }
 
+        // 只取 value 对象 ManifestEntry
         return map.values();
     }
 
@@ -408,6 +415,7 @@ public abstract class FileDeletionBase<T extends Snapshot> {
         Set<String> skippingSet = new HashSet<>();
 
         for (Snapshot skippingSnapshot : skippingSnapshots) {
+            // manifest-list and manifest-file
             // data manifests
             skippingSet.add(skippingSnapshot.baseManifestList());
             skippingSet.add(skippingSnapshot.deltaManifestList());

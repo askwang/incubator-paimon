@@ -49,7 +49,7 @@ import java.util.stream.Collectors;
 import static org.apache.paimon.partition.PartitionPredicate.createPartitionPredicate;
 import static org.apache.paimon.utils.Preconditions.checkArgument;
 
-/** Metadata of a manifest file. */
+/** Metadata of a manifest file. 区分于 ManifestEntry，ManifestEntry是 manifest file 的内容. */
 public class ManifestFileMeta {
 
     private static final Logger LOG = LoggerFactory.getLogger(ManifestFileMeta.class);

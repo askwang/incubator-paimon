@@ -33,7 +33,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Level;
 
 /**
  * Universal Compaction Style is a compaction style, targeting the use cases requiring lower write
