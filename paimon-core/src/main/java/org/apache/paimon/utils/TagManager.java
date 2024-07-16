@@ -372,7 +372,7 @@ public class TagManager {
         return tags().values().stream().flatMap(Collection::stream).collect(Collectors.toList());
     }
 
-    /** askwang-todo: 二分查找加速 taggedSnapshot 查询速度. */
+    /** askwang-done: 二分查找加速 taggedSnapshot 查询速度. A: 内存查找很快，无需优化. */
     private int findIndex(Snapshot taggedSnapshot, List<Snapshot> taggedSnapshots) {
         for (int i = 0; i < taggedSnapshots.size(); i++) {
             if (taggedSnapshot.id() == taggedSnapshots.get(i).id()) {
@@ -452,7 +452,7 @@ public class TagManager {
     /** 减少不重叠的 snapshot 范围 [begin, end): [10, 15) taggedSnapshots: [7, 9, 11, 12]. */
     private static int findNextOrEqualTagAskwang(
             List<Snapshot> taggedSnapshots, long targetSnapshotId) {
-        for (int i = 0; i < targetSnapshotId; i++) {
+        for (int i = 0; i < taggedSnapshots.size(); i++) {
             if (taggedSnapshots.get(i).id() >= targetSnapshotId) {
                 return i;
             }
