@@ -37,6 +37,7 @@ import static org.apache.spark.sql.types.DataTypes.TimestampType;
 /** A procedure to expire snapshots. */
 public class ExpireSnapshotsProcedure extends BaseProcedure {
 
+    // askwang-todo: older_than 类型改为 StringType
     private static final ProcedureParameter[] PARAMETERS =
             new ProcedureParameter[] {
                 ProcedureParameter.required("table", StringType),

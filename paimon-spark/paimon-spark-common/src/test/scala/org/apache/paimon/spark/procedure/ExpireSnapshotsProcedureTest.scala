@@ -19,10 +19,13 @@
 package org.apache.paimon.spark.procedure
 
 import org.apache.paimon.spark.PaimonSparkTestBase
-
+import org.apache.paimon.utils.SnapshotManager
 import org.apache.spark.sql.{Dataset, Row}
 import org.apache.spark.sql.execution.streaming.MemoryStream
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.streaming.StreamTest
+
+import java.sql.Timestamp
 
 class ExpireSnapshotsProcedureTest extends PaimonSparkTestBase with StreamTest {
 
@@ -33,10 +36,11 @@ class ExpireSnapshotsProcedureTest extends PaimonSparkTestBase with StreamTest {
       withTempDir {
         checkpointDir =>
           // define a change-log table and test `forEachBatch` api
-          spark.sql(s"""
-                       |CREATE TABLE T (a INT, b STRING)
-                       |TBLPROPERTIES ('primary-key'='a', 'bucket'='3')
-                       |""".stripMargin)
+          spark.sql(
+            s"""
+               |CREATE TABLE T (a INT, b STRING)
+               |TBLPROPERTIES ('primary-key'='a', 'bucket'='3')
+               |""".stripMargin)
           val location = loadTable("T").location().toString
 
           val inputData = MemoryStream[(Int, String)]
@@ -89,10 +93,11 @@ class ExpireSnapshotsProcedureTest extends PaimonSparkTestBase with StreamTest {
       withTempDir {
         checkpointDir =>
           // define a change-log table and test `forEachBatch` api
-          spark.sql(s"""
-                       |CREATE TABLE T (a INT, b STRING)
-                       |TBLPROPERTIES ('primary-key'='a', 'bucket'='3')
-                       |""".stripMargin)
+          spark.sql(
+            s"""
+               |CREATE TABLE T (a INT, b STRING)
+               |TBLPROPERTIES ('primary-key'='a', 'bucket'='3')
+               |""".stripMargin)
           val location = loadTable("T").location().toString
 
           val inputData = MemoryStream[(Int, String)]
@@ -139,14 +144,15 @@ class ExpireSnapshotsProcedureTest extends PaimonSparkTestBase with StreamTest {
 
   // min maybe large than maxExclusive
   test("Paimon Procedure: max delete") {
-    // failAfter(streamingTimeout) {
+    failAfter(streamingTimeout) {
       withTempDir {
         checkpointDir =>
           // define a change-log table and test `forEachBatch` api
-          spark.sql(s"""
-                       |CREATE TABLE T (a INT, b STRING)
-                       |TBLPROPERTIES ('primary-key'='a', 'bucket'='3', 'write-only'='true')
-                       |""".stripMargin)
+          spark.sql(
+            s"""
+               |CREATE TABLE T (a INT, b STRING)
+               |TBLPROPERTIES ('primary-key'='a', 'bucket'='3', 'write-only'='true')
+               |""".stripMargin)
           val location = loadTable("T").location().toString
 
           val inputData = MemoryStream[(Int, String)]
@@ -208,11 +214,64 @@ class ExpireSnapshotsProcedureTest extends PaimonSparkTestBase with StreamTest {
             stream.processAllAvailable()
 
             spark.sql(
-                "CALL paimon.sys.expire_snapshots(table => 'test.T', retain_max => 5, retain_min => 2, max_deletes => 4)")
+              "CALL paimon.sys.expire_snapshots(table => 'test.T', retain_max => 5, retain_min => 2, max_deletes => 4)")
           } finally {
             stream.stop()
           }
       }
-    // }
+    }
+  }
+
+  // ExpireSnapshotsProcedureITCase. test没通过.
+  test("copy ExpireSnapshotsProcedureITCase") {
+    withTable("word_count") {
+      withSQLConf() {
+        // spark.sql("SET TIME ZONE 'Asia/Shanghai';")
+        spark.sql(
+          s"CREATE TABLE word_count ( word STRING, cnt INT) using paimon " +
+            s"TBLPROPERTIES ('primary-key' = 'word', 'file.format'='parquet', 'num-sorted-run.compaction-trigger' = '9999')")
+
+        val table = loadTable("word_count")
+        val snapshotManager = table.snapshotManager()
+
+        // initially prepare 6 snapshots, expected snapshots (1, 2, 3, 4, 5, 6)
+        for (i <- 0 until 6) {
+          sql("INSERT INTO word_count VALUES ('" + String.valueOf(i) + "', " + i + ")")
+        }
+
+        sql("select * from word_count").show
+
+        checkSnapshots(snapshotManager, 1, 6)
+
+        // retain_max => 5, expected snapshots (2, 3, 4, 5, 6)
+        sql("CALL sys.expire_snapshots(`table` => 'word_count', retain_max => 5)")
+        checkSnapshots(snapshotManager, 2, 6)
+
+        // askwang-todo: ts6 作为 procedure 参数一直不通过（如何传递 timestampType 类型）
+        val ts6 = new Timestamp(snapshotManager.latestSnapshot.timeMillis)
+        println("current time: " + System.currentTimeMillis())
+        println("ts6 : " + ts6)
+        // older_than => timestamp of snapshot 6, max_deletes => 1, expected snapshots (3, 4, 5, 6)
+        // earliest=2, min=min(max, 2)=2, max=max(6-1+1, 2+1)=3，所以删除snapshot-2
+        sql("CALL sys.expire_snapshots(`table` => 'word_count', older_than => '" + ts6 + "', max_deletes => 1)")
+        checkSnapshots(snapshotManager, 3, 6)
+
+        // older_than => timestamp of snapshot 6, retain_min => 3, expected snapshots (4, 5, 6)
+        // earliest=3, min=min(max,3)=3, max=min(6-3+1,max)=4，所以删除 snapshot-3
+        sql("CALL sys.expire_snapshots(`table` => 'word_count', older_than => '" + ts6 + "', retain_min => 3)")
+        checkSnapshots(snapshotManager, 4, 6)
+
+        // older_than => timestamp of snapshot 6, expected snapshots (6)
+        // min=min(max,4)=4, max=min(6-1+1, max)=6，所以删除 snapshot-4和snapshot-5
+        sql("CALL sys.expire_snapshots(`table`  => 'word_count', older_than => '" + ts6 + "')")
+        checkSnapshots(snapshotManager, 6, 6)
+      }
+    }
+  }
+
+  def checkSnapshots(sm: SnapshotManager, earliest: Int, lastest: Int): Unit = {
+    assert(sm.snapshotCount() == (lastest - earliest + 1))
+    assert(sm.earliestSnapshotId() == earliest)
+    assert(sm.latestSnapshotId() == lastest)
   }
 }

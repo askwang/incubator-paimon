@@ -118,6 +118,7 @@ public class ExpireSnapshotsImpl implements ExpireSnapshots {
         // protected by 'snapshot.expire.limit'
         // (the maximum number of snapshots allowed to expire at a time)
         // askwang-todo: 考虑 maxDelete 后，min 就有可能大于 maxExclusive，则直接 expireUtil(1,5)
+        // A:好像同时这么retainMin和retainMax和 maxDelete 的可能性能小。
         maxExclusive = Math.min(maxExclusive, earliest + maxDeletes);
 
         // snapshot(i).timeMillis + snapshot.time-retained >= system.currentTime
@@ -171,7 +172,8 @@ public class ExpireSnapshotsImpl implements ExpireSnapshots {
         List<Snapshot> taggedSnapshots = tagManager.taggedSnapshots();
 
         // 删除文件：删除一个 snapshot 下的文件，前提条件是下一个 snapshot 没有使用该文件
-        // askwang-todo: 为什么要这么遍历？
+        // askwang-done: 为什么要这么遍历？
+        // A：下一个 snapshot 的 deltaManifestList 记录决定是否有删除当前 snapshot 文件的操作。
         // delete merge tree files
         // deleted merge tree files in a snapshot are not used by the next snapshot, so the range of
         // id should be (beginInclusiveId, endExclusiveId]

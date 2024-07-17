@@ -412,7 +412,8 @@ public class TagManager {
         List<Snapshot> snapshots = new ArrayList<>();
         int right = findPreviousTag(taggedSnapshots, endExclusive);
         if (right >= 0) {
-            // askwang-todo: left 会多一个无效的值，参考 findNextOrEqualTagAskwang
+            // askwang-done: left 会多一个无效的值，参考 findNextOrEqualTagAskwang
+            // https://github.com/apache/paimon/pull/3755
             int left = Math.max(findPreviousOrEqualTag(taggedSnapshots, beginInclusive), 0);
             for (int i = left; i <= right; i++) {
                 snapshots.add(taggedSnapshots.get(i));
