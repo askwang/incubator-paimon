@@ -293,6 +293,7 @@ public abstract class FileDeletionBase<T extends Snapshot> {
     public void cleanUnusedManifestList(String manifestName, Set<String> skippingSet) {
         List<String> toDeleteManifests = new ArrayList<>();
         List<ManifestFileMeta> toExpireManifests = tryReadManifestList(manifestName);
+        // 删除 manifest-file 文件
         for (ManifestFileMeta manifest : toExpireManifests) {
             String fileName = manifest.fileName();
             if (!skippingSet.contains(fileName)) {

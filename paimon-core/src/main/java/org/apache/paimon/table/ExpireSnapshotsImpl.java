@@ -219,14 +219,16 @@ public class ExpireSnapshotsImpl implements ExpireSnapshots {
             snapshotDeletion.cleanDataDirectories();
         }
 
-        // 过滤出不应该被删除的 snapshot manifest 和文件，因为 tag snapshot 会依赖
+        // 过滤出不应该被删除的 snapshot manifest 和文件，因为 taggedSnapshot 会依赖
         // delete manifests and indexFiles
         List<Snapshot> skippingSnapshots =
                 TagManager.findOverlappedSnapshots(
                         taggedSnapshots, beginInclusiveId, endExclusiveId);
         skippingSnapshots.add(snapshotManager.snapshot(endExclusiveId));
+        // 记录 baseManifestList、deltaManifestList、manifest 文件名
         Set<String> skippingSet = snapshotDeletion.manifestSkippingSet(skippingSnapshots);
 
+        // 删除过期 snapshot 的 manifest 文件、snapshot 目录文件
         for (long id = beginInclusiveId; id < endExclusiveId; id++) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Ready to delete manifests in snapshot #" + id);
