@@ -18,14 +18,18 @@
 
 package org.apache.paimon.spark.sql
 
+import org.apache.paimon.CoreOptions
+import org.apache.paimon.manifest.ManifestCommittable
 import org.apache.paimon.spark.PaimonSparkTestBase
-
+import org.apache.paimon.table.sink.CommitCallback
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.analysis.Analyzer
 import org.apache.spark.sql.catalyst.optimizer.Optimizer
 import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.execution.SparkPlanner
 import org.apache.spark.sql.internal.SQLConf
+
+import java.util
 
 /**
  * @author
@@ -69,6 +73,36 @@ class AskwangSQLQueryTest extends PaimonSparkTestBase {
       }
     }
   }
+
+  test("commit callback") {
+    withTable("tb") {
+      withSQLConf(SQLConf.DATETIME_JAVA8API_ENABLED.key -> "false") {
+
+        spark.sql(
+          """
+            |CREATE TABLE tb (id int, dt string) using paimon
+            |TBLPROPERTIES ('file.format'='parquet', 'primary-key'='id', 'bucket'='1')
+            |""".stripMargin)
+        //      val ds = sql("INSERT INTO `tb` VALUES (cast(NULL as long),cast(NULL as string))")
+
+        val sp = spark
+
+        // "org.apache.paimon.spark.sql.AskwangCommitCallback"
+        println("commit class: " + classOf[AskwangCommitCallback].getName)
+        val location = loadTable("tb").location().toString
+
+        import sp.implicits._
+        val df1 = Seq((1, "a"), (2, "b")).toDF("a", "b")
+        df1.write.format("paimon")
+          .option(CoreOptions.COMMIT_CALLBACKS.key(), classOf[AskwangCommitCallback].getName)
+          .option(CoreOptions.COMMIT_CALLBACK_PARAM.key()
+            .replace("#", classOf[AskwangCommitCallback].getName), "appid-100")
+          .mode("append").save(location)
+      }
+    }
+  }
+
+
 
   def explainPlan(query: String, spark: SparkSession) = {
     val (parser, analyzer, optimizer, planner) = analysisEntry(spark)

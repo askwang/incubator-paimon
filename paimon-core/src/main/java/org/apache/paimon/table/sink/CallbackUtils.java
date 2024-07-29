@@ -57,6 +57,7 @@ public class CallbackUtils {
                     "Class " + clazz + " must implement " + expectClass);
 
             try {
+                //
                 if (param == null) {
                     result.add((T) clazz.newInstance());
                 } else {

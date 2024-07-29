@@ -248,4 +248,5 @@ public class TableCommitTest {
                         "Cannot recover from this checkpoint because some files in the"
                                 + " snapshot that need to be resubmitted have been deleted");
     }
+
 }
